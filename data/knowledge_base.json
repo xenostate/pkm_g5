@@ -1,0 +1,179 @@
+{
+  "documents": {
+    "56543b75b23a": {
+      "id": "56543b75b23a",
+      "title": "2.Systems Engineering(new)",
+      "source_type": "pdf",
+      "source": "2.Systems Engineering(new).pdf",
+      "added_at": "2026-03-20T03:51:27.004455+00:00",
+      "chunk_count": 6,
+      "text_length": 23193,
+      "summary": "The document titled \"Systems Engineering\" by Prof. Eunseok Lee provides a comprehensive overview of systems engineering, emphasizing the importance of understanding sociotechnical systems, emergent properties, and the various stages involved in the systems engineering process. The primary objectives include distinguishing between technical and sociotechnical systems, recognizing emergent properties such as reliability and security, and understanding the interconnectedness of software dependability with broader systems issues.\n\nThe document outlines key concepts such as complex systems, which are defined as purposeful collections of interrelated components working together towards a common goal. It differentiates between technical computer-based systems, which typically exclude human operators, and sociotechnical systems that incorporate human and organizational factors. The sociotechnical systems stack is introduced, illustrating the layers of equipment, operating systems, communication, application systems, business processes, organizations, and societal influences, highlighting the interdependencies and interactions among these layers.\n\nThe stages of systems engineering are detailed, including conceptual design, procurement, development, operation, and evolution. Conceptual design focuses on feasibility and high-level system descriptions, while procurement involves defining requirements and selecting suppliers. Development encompasses requirements engineering, architectural design, and system integration, emphasizing the need for interdisciplinary collaboration. The document also addresses the significance of human factors in system operation, the inevitability of human error, and the necessity for systems to include safeguards against such errors. Finally, it discusses system evolution, the challenges of maintaining legacy systems, and the factors influencing system lifetimes, such as investment costs and risks associated with change.\n\nIn conclusion, the document underscores the complexity of systems engineering and the critical role of human and organizational factors in the design and operation of sociotechnical systems. It advocates for a holistic approach to systems engineering that considers emergent properties and the interplay between technical components and human operators, ultimately aiming for systems that effectively meet organizational goals while adapting to evolving requirements.",
+      "connections": [
+        {
+          "doc_id": "4d7dbd2530c0",
+          "title": "1.Introduction to SE(new)",
+          "similarity": 0.9596,
+          "description": "both documents by Prof. Eunseok Lee focus on engineering disciplines, with the first addressing systems engineering and its sociotechnical aspects, while the second emphasizes software engineering and its methodologies, underscoring the interconnectedness of both fields in developing reliable systems."
+        }
+      ]
+    },
+    "4d7dbd2530c0": {
+      "id": "4d7dbd2530c0",
+      "title": "1.Introduction to SE(new)",
+      "source_type": "pdf",
+      "source": "1.Introduction to SE(new).pdf",
+      "added_at": "2026-03-20T03:52:16.916386+00:00",
+      "chunk_count": 8,
+      "text_length": 26906,
+      "summary": "The document titled \"Introduction to SE(new)\" by Prof. Eunseok Lee from Sungkyunkwan University provides a comprehensive overview of software engineering (SE), its significance, methodologies, ethical considerations, and various application types. The introduction emphasizes the critical role of software in modern economies, highlighting that software engineering is essential for developing reliable and efficient software systems. The document outlines the objectives of the course, which include understanding the importance of SE, recognizing different techniques for various software types, and addressing ethical issues relevant to software engineers.\n\nKey concepts discussed include the distinction between generic and customized software products, the importance of software costs, and the various software engineering processes such as specification, development, validation, and evolution. The document also addresses the diversity of software systems, noting that different applications—ranging from stand-alone applications to embedded control systems—require tailored engineering approaches. The significance of software engineering is underscored by its impact on the economy and the necessity for systematic methodologies to manage software development effectively.\n\nEthical considerations are a major focus, with the document referencing the ACM/IEEE Code of Ethics, which outlines the responsibilities of software engineers to act in the public interest, maintain confidentiality, and ensure the integrity of their work. The document also presents case studies, including an insulin pump control system, a mental health care patient management system, and a wilderness weather station, to illustrate practical applications of software engineering principles. These case studies highlight the importance of safety, reliability, and ethical considerations in the development of software systems that have significant impacts on health and safety.\n\nIn conclusion, the document emphasizes that software engineering is not merely a technical discipline but also encompasses ethical responsibilities and professional conduct. It advocates for a comprehensive understanding of software engineering principles, methodologies, and ethical standards to prepare future software engineers for the challenges they will face in a rapidly evolving technological landscape. The integration of ethical considerations into software engineering practices is presented as essential for fostering trust and accountability in the profession.",
+      "connections": [
+        {
+          "doc_id": "56543b75b23a",
+          "title": "2.Systems Engineering(new)",
+          "similarity": 0.9596,
+          "description": "Both documents, authored by Prof. Eunseok Lee, provide comprehensive overviews of their respective fields—software engineering and systems engineering—highlighting their significance, methodologies, and the importance of reliability and efficiency in modern technological systems."
+        }
+      ]
+    }
+  },
+  "qa_history": [
+    {
+      "id": "q_18ab3648",
+      "question": "Whats inside system engineering pdf",
+      "answer": "I don't have enough information from your documents to answer this.",
+      "sources": [
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.8491
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.849
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.848
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.8476
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.8471
+        }
+      ],
+      "timestamp": "2026-03-20T03:54:02.185571+00:00"
+    },
+    {
+      "id": "q_eca2907e",
+      "question": "What do you know",
+      "answer": "The document on Systems Engineering covers various topics including:\n\n1. **Objectives**: Understanding sociotechnical systems, emergent properties, and the systems engineering process.\n2. **Topics Covered**: Complex systems, systems engineering, conceptual design, procurement, development, operation, and evolution.\n3. **System Definition**: A system is a purposeful collection of inter-related components working together to achieve a common objective.\n4. **Sociotechnical Systems**: These include both technical systems and the people and processes that interact with them.\n5. **Emergent Properties**: Characteristics that arise from the interactions of system components, such as reliability and security.\n6. **Non-determinism**: The behavior of socio-technical systems can vary due to human interaction and system changes.\n7. **Success Criteria**: Success is subjective and varies among stakeholders based on their perspectives and objectives.\n\nThis information is derived from the provided source chunks [1], [2], and [3].",
+      "sources": [
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.763
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.7604
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7587
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7571
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7561
+        }
+      ],
+      "timestamp": "2026-03-20T03:54:18.448851+00:00"
+    },
+    {
+      "id": "q_e9f796da",
+      "question": "What knowledge do you have",
+      "answer": "I have knowledge about Systems Engineering, which includes the following key points:\n\n1. **Objectives**: Understanding sociotechnical systems, emergent properties, and the systems engineering process.\n2. **System Definition**: A system is a purposeful collection of inter-related components working together to achieve a common objective.\n3. **Sociotechnical Systems**: These systems include both technical components and the human processes that interact with them.\n4. **Emergent Properties**: Characteristics that arise from the interactions of system components, such as reliability and security.\n5. **Non-determinism**: The behavior of socio-technical systems can vary due to human interaction and system changes.\n6. **Success Criteria**: Success is subjective and varies among stakeholders based on their perspectives and objectives.\n7. **Stages of Systems Engineering**: Includes conceptual design, procurement, development, operation, and decommissioning of systems.\n\nThis information is derived from the provided source chunks [1], [2], [3], [4], and [5].",
+      "sources": [
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.7716
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.771
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.7693
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7684
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.7683
+        }
+      ],
+      "timestamp": "2026-03-20T06:24:11.174173+00:00"
+    },
+    {
+      "id": "q_6c8ca6de",
+      "question": "What was Introduction to SE pdf about?",
+      "answer": "The \"Introduction to SE\" PDF discusses the fundamentals of software engineering, including its importance, key concepts, and various software processes. It covers topics such as software costs, types of software products, software engineering ethics, and the essential attributes of good software. The document emphasizes the need for systematic methodologies in software development and the diverse application types in software engineering. It also addresses the challenges faced in the field and the ethical responsibilities of software engineers. \n\nThis information is derived from documents [1], [2], [3], and [5].",
+      "sources": [
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7776
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7634
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7551
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.7544
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7516
+        }
+      ],
+      "timestamp": "2026-03-28T09:45:35.670685+00:00"
+    }
+  ],
+  "stats": {
+    "total_documents": 2,
+    "total_chunks": 14,
+    "total_questions": 4
+  }
+}

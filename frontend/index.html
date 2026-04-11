@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PKM — Personal Knowledge Management</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">PKM</h1>
+                <span class="logo-sub">Knowledge Manager</span>
+            </div>
+            <nav class="nav">
+                <a href="#documents" class="nav-item active" data-page="documents">
+                    <span class="nav-icon">&#128196;</span> Documents
+                </a>
+                <a href="#connections" class="nav-item" data-page="connections">
+                    <span class="nav-icon">&#128279;</span> Knowledge Map
+                </a>
+                <a href="#summaries" class="nav-item" data-page="summaries">
+                    <span class="nav-icon">&#128221;</span> Summaries
+                </a>
+                <a href="#chat" class="nav-item" data-page="chat">
+                    <span class="nav-icon">&#128172;</span> Chat
+                </a>
+            </nav>
+            <div class="sidebar-stats" id="sidebar-stats">
+                <div class="stat"><span class="stat-num" id="stat-docs">0</span> docs</div>
+                <div class="stat"><span class="stat-num" id="stat-chunks">0</span> chunks</div>
+                <div class="stat"><span class="stat-num" id="stat-qa">0</span> Q&amp;A</div>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <main class="main">
+            <!-- Search bar -->
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search your knowledge base..." autocomplete="off">
+                <button id="search-btn" class="btn btn-primary">Search</button>
+            </div>
+            <div id="search-results" class="search-results hidden"></div>
+
+            <!-- Pages -->
+            <div id="page-documents" class="page active">
+                <div class="page-header">
+                    <h2>Documents</h2>
+                </div>
+
+                <!-- Upload area -->
+                <div class="upload-section">
+                    <div class="upload-tabs">
+                        <button class="upload-tab active" data-tab="pdf">Upload PDF</button>
+                        <button class="upload-tab" data-tab="url">Add URL</button>
+                        <button class="upload-tab" data-tab="text">Add Text</button>
+                    </div>
+
+                    <div class="upload-content" id="tab-pdf">
+                        <div class="dropzone" id="dropzone">
+                            <p>Drag & drop PDF files here</p>
+                            <p class="dropzone-sub">or click to browse</p>
+                            <input type="file" id="file-input" accept=".pdf" multiple hidden>
+                        </div>
+                    </div>
+
+                    <div class="upload-content hidden" id="tab-url">
+                        <div class="input-group">
+                            <input type="url" id="url-input" placeholder="https://example.com/article">
+                            <button id="url-btn" class="btn btn-primary">Add URL</button>
+                        </div>
+                    </div>
+
+                    <div class="upload-content hidden" id="tab-text">
+                        <div class="text-input-group">
+                            <input type="text" id="text-title" placeholder="Title for your note">
+                            <textarea id="text-content" rows="4" placeholder="Paste or type your text here..."></textarea>
+                            <button id="text-btn" class="btn btn-primary">Add Text</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Document list -->
+                <div class="doc-list" id="doc-list">
+                    <p class="empty-state">No documents yet. Upload a PDF, add a URL, or paste some text to get started.</p>
+                </div>
+            </div>
+
+            <div id="page-connections" class="page">
+                <div class="page-header">
+                    <h2>Knowledge Map</h2>
+                    <button id="refresh-connections-btn" class="btn btn-secondary">Refresh Connections</button>
+                </div>
+                <div class="connections-container">
+                    <canvas id="connections-canvas"></canvas>
+                    <div id="connections-empty" class="empty-state">Add at least 2 documents, then click "Refresh Connections" to discover relationships.</div>
+                </div>
+            </div>
+
+            <div id="page-summaries" class="page">
+                <div class="page-header">
+                    <h2>Summaries</h2>
+                </div>
+                <div id="summaries-list" class="summaries-list">
+                    <p class="empty-state">No summaries yet. Upload documents to generate summaries automatically.</p>
+                </div>
+            </div>
+
+            <div id="page-chat" class="page">
+                <div class="page-header">
+                    <h2>Chat with your Knowledge</h2>
+                </div>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-welcome">
+                            <p>Ask questions about your documents. The AI will answer based on your knowledge base.</p>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" id="chat-input" placeholder="Ask a question...">
+                        <button id="chat-send" class="btn btn-primary">Send</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p id="loading-text">Processing...</p>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
