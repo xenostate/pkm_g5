@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSearch();
     initChat();
     initConnections();
+    initPodcast();
     loadDocuments();
     loadStats();
 });
@@ -38,6 +39,7 @@ function initRouter() {
 
         if (page === "connections") renderConnections();
         if (page === "summaries") renderSummaries();
+        if (page === "podcast") renderPodcastDocs();
     }
 
     navItems.forEach(item => {
@@ -535,6 +537,107 @@ function showLoading(text = "Processing...") {
 
 function hideLoading() {
     document.getElementById("loading-overlay").classList.add("hidden");
+}
+
+// ── Podcast ────────────────────────────────────────────────────────────────
+
+let podcastScript = "";
+
+function initPodcast() {
+    document.getElementById("podcast-generate-btn").addEventListener("click", generatePodcastScript);
+    document.getElementById("podcast-synthesize-btn").addEventListener("click", synthesizePodcast);
+}
+
+function renderPodcastDocs() {
+    const list = document.getElementById("podcast-doc-list");
+    if (!documents.length) {
+        list.innerHTML = '<p class="empty-state" style="padding:20px">No documents yet.</p>';
+        return;
+    }
+    list.innerHTML = documents.map(doc => `
+        <label class="podcast-doc-item">
+            <input type="checkbox" class="podcast-doc-check" value="${doc.doc_id}">
+            <span class="doc-type ${doc.source_type}">${doc.source_type}</span>
+            <span class="podcast-doc-title">${escapeHtml(doc.title)}</span>
+        </label>
+    `).join("");
+}
+
+async function generatePodcastScript() {
+    const checked = Array.from(document.querySelectorAll(".podcast-doc-check:checked")).map(c => c.value);
+    if (!checked.length) { alert("Select at least one document."); return; }
+
+    const topic = document.getElementById("podcast-topic").value.trim();
+
+    showLoading("Generating podcast script (this may take 30–60 seconds)...");
+    document.getElementById("podcast-generate-btn").disabled = true;
+
+    try {
+        const res = await fetch(`${API}/api/podcast/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ doc_ids: checked, topic }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to generate script");
+
+        podcastScript = data.script;
+        document.getElementById("podcast-script").value = podcastScript;
+        document.getElementById("podcast-script-header").classList.remove("hidden");
+
+        const meta = document.getElementById("podcast-meta");
+        meta.textContent = `${data.word_count.toLocaleString()} words · ${data.doc_count} document${data.doc_count !== 1 ? "s" : ""}`;
+        meta.classList.remove("hidden");
+
+        document.getElementById("podcast-synthesize-btn").classList.remove("hidden");
+        document.getElementById("podcast-player-wrap").classList.add("hidden");
+    } catch (err) {
+        alert(`Error: ${err.message}`);
+    }
+
+    hideLoading();
+    document.getElementById("podcast-generate-btn").disabled = false;
+}
+
+async function synthesizePodcast() {
+    if (!podcastScript) return;
+
+    showLoading("Synthesizing audio with Kokoro TTS — this takes a few minutes for a full episode...");
+    document.getElementById("podcast-synthesize-btn").disabled = true;
+
+    try {
+        const res = await fetch(`${API}/api/podcast/synthesize`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ script: podcastScript }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Synthesis failed");
+
+        const audio = document.getElementById("podcast-audio");
+        audio.src = data.url + "?t=" + Date.now();
+
+        const dl = document.getElementById("podcast-download");
+        dl.href = data.url;
+        dl.download = data.filename;
+
+        document.getElementById("podcast-player-wrap").classList.remove("hidden");
+    } catch (err) {
+        alert(`Error: ${err.message}`);
+    }
+
+    hideLoading();
+    document.getElementById("podcast-synthesize-btn").disabled = false;
+}
+
+function copyPodcastScript() {
+    const ta = document.getElementById("podcast-script");
+    navigator.clipboard.writeText(ta.value).then(() => {
+        const btn = document.querySelector("#podcast-script-header button");
+        const orig = btn.textContent;
+        btn.textContent = "Copied!";
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

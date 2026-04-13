@@ -10,3 +10,6 @@ uvicorn[standard]>=0.30
 openai>=1.0
 pypdf>=4.0
 python-multipart>=0.0.9
+kokoro>=0.9.4
+soundfile>=0.12
+misaki[en]>=0.9.4

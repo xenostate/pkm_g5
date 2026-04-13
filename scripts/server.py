@@ -45,6 +45,7 @@ from scripts.rag import (
     load_kb, save_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
     answer_question, summarize_document, find_connections, refresh_all_connections,
 )
+from scripts.podcast import generate_podcast_script, synthesize_speech, PODCAST_DIR
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
@@ -120,6 +121,15 @@ class UrlRequest(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 10
+
+
+class PodcastScriptRequest(BaseModel):
+    doc_ids: list[str]
+    topic: str = ""
+
+
+class PodcastSynthesizeRequest(BaseModel):
+    script: str
 
 
 # ── Routes: Static / Health ─────────────────────────────────────────────────
@@ -373,7 +383,42 @@ async def get_stats():
     return kb.get("stats", {})
 
 
+# ── Routes: Podcast ──────────────────────────────────────────────────────────
+
+@app.post("/api/podcast/generate")
+async def podcast_generate(req: PodcastScriptRequest):
+    global kb
+    if not req.doc_ids:
+        return JSONResponse({"error": "Select at least one document."}, status_code=400)
+
+    try:
+        result = await asyncio.to_thread(generate_podcast_script, req.doc_ids, kb, req.topic)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+    log.info(f"Podcast script generated: {result['word_count']} words from {result['doc_count']} docs")
+    return result
+
+
+@app.post("/api/podcast/synthesize")
+async def podcast_synthesize(req: PodcastSynthesizeRequest):
+    if not req.script.strip():
+        return JSONResponse({"error": "Script is empty."}, status_code=400)
+
+    try:
+        filename = await asyncio.to_thread(synthesize_speech, req.script)
+    except ImportError as e:
+        return JSONResponse({"error": str(e)}, status_code=503)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+    log.info(f"Podcast audio synthesized: {filename}")
+    return {"filename": filename, "url": f"/podcasts/{filename}"}
+
+
 # ── Mount static files (must be last) ───────────────────────────────────────
 
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
+PODCAST_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/podcasts", StaticFiles(directory=PODCAST_DIR), name="podcasts")
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")

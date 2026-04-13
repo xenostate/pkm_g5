@@ -27,6 +27,9 @@
                 <a href="#chat" class="nav-item" data-page="chat">
                     <span class="nav-icon">&#128172;</span> Chat
                 </a>
+                <a href="#podcast" class="nav-item" data-page="podcast">
+                    <span class="nav-icon">&#127911;</span> Podcast
+                </a>
             </nav>
             <div class="sidebar-stats" id="sidebar-stats">
                 <div class="stat"><span class="stat-num" id="stat-docs">0</span> docs</div>
@@ -121,6 +124,50 @@
                     <div class="chat-input-area">
                         <input type="text" id="chat-input" placeholder="Ask a question...">
                         <button id="chat-send" class="btn btn-primary">Send</button>
+                    </div>
+                </div>
+            </div>
+            <div id="page-podcast" class="page">
+                <div class="page-header">
+                    <h2>Podcast Generator</h2>
+                </div>
+
+                <div class="podcast-layout">
+                    <!-- Left: controls -->
+                    <div class="podcast-controls">
+                        <div class="podcast-section">
+                            <label class="podcast-label">Select documents</label>
+                            <div class="podcast-doc-list" id="podcast-doc-list">
+                                <p class="empty-state" style="padding:20px">No documents yet.</p>
+                            </div>
+                        </div>
+
+                        <div class="podcast-section">
+                            <label class="podcast-label">Focus topic <span class="podcast-optional">(optional)</span></label>
+                            <input type="text" id="podcast-topic" placeholder="e.g. key arguments, practical applications...">
+                        </div>
+
+                        <button id="podcast-generate-btn" class="btn btn-primary podcast-action-btn">Generate Script</button>
+
+                        <div id="podcast-meta" class="podcast-meta hidden"></div>
+
+                        <button id="podcast-synthesize-btn" class="btn btn-secondary podcast-action-btn hidden">
+                            &#127911; Generate Audio
+                        </button>
+
+                        <div id="podcast-player-wrap" class="podcast-player-wrap hidden">
+                            <audio id="podcast-audio" controls></audio>
+                            <a id="podcast-download" class="btn btn-secondary" download>Download WAV</a>
+                        </div>
+                    </div>
+
+                    <!-- Right: script -->
+                    <div class="podcast-script-panel">
+                        <div class="podcast-script-header hidden" id="podcast-script-header">
+                            <span>Script</span>
+                            <button class="btn btn-secondary" onclick="copyPodcastScript()" style="font-size:14px;padding:6px 14px">Copy</button>
+                        </div>
+                        <textarea id="podcast-script" class="podcast-script" readonly placeholder="Your podcast script will appear here..."></textarea>
                     </div>
                 </div>
             </div>
