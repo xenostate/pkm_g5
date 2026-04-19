@@ -1,12 +1,27 @@
-/* ── PKM Dashboard App ──────────────────────────────────────────────────── */
+/* ── School Helper Dashboard App ───────────────────────────────────────── */
 
 const API = "";  // same origin
 
 // ── State ──────────────────────────────────────────────────────────────────
 
 let documents = [];
-let sessionId = sessionStorage.getItem("pkm_session") || crypto.randomUUID();
-sessionStorage.setItem("pkm_session", sessionId);
+let courses = [];
+let activeCourseId = null;
+let sessionId = sessionStorage.getItem("sh_session") || crypto.randomUUID();
+sessionStorage.setItem("sh_session", sessionId);
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function courseApi(path) {
+    return `${API}/api/courses/${activeCourseId}${path}`;
+}
+
+function escapeHtml(str) {
+    if (!str) return "";
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
@@ -16,9 +31,9 @@ document.addEventListener("DOMContentLoaded", () => {
     initSearch();
     initChat();
     initConnections();
-    initPodcast();
-    loadDocuments();
-    loadStats();
+    initCourseModal();
+    initChatWidget();
+    loadCourses();
 });
 
 // ── Router ─────────────────────────────────────────────────────────────────
@@ -39,7 +54,6 @@ function initRouter() {
 
         if (page === "connections") renderConnections();
         if (page === "summaries") renderSummaries();
-        if (page === "podcast") renderPodcastDocs();
     }
 
     navItems.forEach(item => {
@@ -51,7 +65,6 @@ function initRouter() {
         });
     });
 
-    // Handle initial hash
     const hash = window.location.hash.slice(1) || "documents";
     navigate(hash);
 
@@ -60,10 +73,181 @@ function initRouter() {
     });
 }
 
+// ── Course Management ─────────────────────────────────────────────────────
+
+async function loadCourses() {
+    try {
+        const res = await fetch(`${API}/api/courses`);
+        const data = await res.json();
+        courses = data.courses || [];
+    } catch (err) {
+        console.error("Failed to load courses:", err);
+        courses = [];
+    }
+
+    if (courses.length === 0) {
+        activeCourseId = null;
+        showNoCoursePrompt();
+    } else {
+        // Restore last active or pick first
+        const stored = sessionStorage.getItem("sh_active_course");
+        const valid = courses.find(c => c.id === stored);
+        activeCourseId = valid ? stored : courses[0].id;
+        hideNoCoursePrompt();
+        loadCourseData();
+    }
+    renderCourseTabs();
+}
+
+function renderCourseTabs() {
+    const container = document.getElementById("course-tabs");
+    container.innerHTML = courses.map(c => `
+        <button class="course-tab ${c.id === activeCourseId ? 'active' : ''}"
+                data-id="${c.id}"
+                style="border-bottom-color: ${c.id === activeCourseId ? c.color : 'transparent'}">
+            ${escapeHtml(c.name)}
+            <span class="course-tab-delete" data-id="${c.id}" title="Delete course">&times;</span>
+        </button>
+    `).join("");
+
+    // Tab click -> switch course
+    container.querySelectorAll(".course-tab").forEach(tab => {
+        tab.addEventListener("click", (e) => {
+            if (e.target.classList.contains("course-tab-delete")) return;
+            setActiveCourse(tab.dataset.id);
+        });
+    });
+
+    // Delete click
+    container.querySelectorAll(".course-tab-delete").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            deleteCourse(btn.dataset.id);
+        });
+    });
+}
+
+function setActiveCourse(courseId) {
+    activeCourseId = courseId;
+    sessionStorage.setItem("sh_active_course", courseId);
+    renderCourseTabs();
+    updateWidgetCourseName();
+    clearWidgetMessages();
+    loadCourseData();
+}
+
+function loadCourseData() {
+    if (!activeCourseId) return;
+    loadDocuments();
+    loadStats();
+    // Re-render the active page if needed
+    const hash = window.location.hash.slice(1) || "documents";
+    if (hash === "connections") renderConnections();
+    if (hash === "summaries") renderSummaries();
+
+}
+
+async function deleteCourse(courseId) {
+    const course = courses.find(c => c.id === courseId);
+    const name = course ? course.name : courseId;
+    if (!confirm(`Delete course "${name}" and all its documents?`)) return;
+
+    try {
+        const res = await fetch(`${API}/api/courses/${courseId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Delete failed");
+    } catch (err) {
+        alert(`Error: ${err.message}`);
+    }
+    loadCourses();
+}
+
+function showNoCoursePrompt() {
+    document.getElementById("no-course-prompt").classList.remove("hidden");
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.querySelector(".search-bar").style.display = "none";
+}
+
+function hideNoCoursePrompt() {
+    document.getElementById("no-course-prompt").classList.add("hidden");
+    document.querySelector(".search-bar").style.display = "";
+    // Restore active page
+    const hash = window.location.hash.slice(1) || "documents";
+    const pageEl = document.getElementById(`page-${hash}`);
+    if (pageEl) pageEl.classList.add("active");
+}
+
+// ── Course Modal ──────────────────────────────────────────────────────────
+
+function initCourseModal() {
+    const modal = document.getElementById("course-modal");
+    const nameInput = document.getElementById("course-name-input");
+    let selectedColor = "#6366f1";
+
+    // Open modal
+    document.getElementById("course-add-btn").addEventListener("click", () => openCourseModal());
+    document.getElementById("no-course-create-btn").addEventListener("click", () => openCourseModal());
+
+    function openCourseModal() {
+        nameInput.value = "";
+        selectedColor = "#6366f1";
+        document.querySelectorAll(".color-swatch").forEach(s => {
+            s.classList.toggle("active", s.dataset.color === selectedColor);
+        });
+        modal.classList.remove("hidden");
+        nameInput.focus();
+    }
+
+    // Color selection
+    document.getElementById("color-options").addEventListener("click", (e) => {
+        const swatch = e.target.closest(".color-swatch");
+        if (!swatch) return;
+        selectedColor = swatch.dataset.color;
+        document.querySelectorAll(".color-swatch").forEach(s => {
+            s.classList.toggle("active", s.dataset.color === selectedColor);
+        });
+    });
+
+    // Cancel
+    document.getElementById("course-modal-cancel").addEventListener("click", () => {
+        modal.classList.add("hidden");
+    });
+
+    // Create
+    document.getElementById("course-modal-create").addEventListener("click", async () => {
+        const name = nameInput.value.trim();
+        if (!name) { nameInput.focus(); return; }
+
+        try {
+            const res = await fetch(`${API}/api/courses`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, color: selectedColor }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to create course");
+            modal.classList.add("hidden");
+            // Reload courses and switch to new one
+            await loadCourses();
+            setActiveCourse(data.course_id);
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        }
+    });
+
+    // Enter key in name input
+    nameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") document.getElementById("course-modal-create").click();
+    });
+
+    // Click outside to close
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) modal.classList.add("hidden");
+    });
+}
+
 // ── Upload ─────────────────────────────────────────────────────────────────
 
 function initUpload() {
-    // Tab switching
     const tabs = document.querySelectorAll(".upload-tab");
     tabs.forEach(tab => {
         tab.addEventListener("click", () => {
@@ -74,7 +258,6 @@ function initUpload() {
         });
     });
 
-    // PDF upload
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("file-input");
 
@@ -103,23 +286,22 @@ function initUpload() {
         }
     });
 
-    // URL
     document.getElementById("url-btn").addEventListener("click", addURL);
     document.getElementById("url-input").addEventListener("keydown", (e) => {
         if (e.key === "Enter") addURL();
     });
 
-    // Text
     document.getElementById("text-btn").addEventListener("click", addText);
 }
 
 async function uploadPDFs(files) {
+    if (!activeCourseId) return;
     for (const file of files) {
         showLoading(`Uploading ${file.name}...`);
         try {
             const form = new FormData();
             form.append("file", file);
-            const res = await fetch(`${API}/api/documents/upload-pdf`, { method: "POST", body: form });
+            const res = await fetch(courseApi("/documents/upload-pdf"), { method: "POST", body: form });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Upload failed");
         } catch (err) {
@@ -132,13 +314,14 @@ async function uploadPDFs(files) {
 }
 
 async function addURL() {
+    if (!activeCourseId) return;
     const input = document.getElementById("url-input");
     const url = input.value.trim();
     if (!url) return;
 
     showLoading("Fetching and indexing URL...");
     try {
-        const res = await fetch(`${API}/api/documents/add-url`, {
+        const res = await fetch(courseApi("/documents/add-url"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ url }),
@@ -155,6 +338,7 @@ async function addURL() {
 }
 
 async function addText() {
+    if (!activeCourseId) return;
     const titleInput = document.getElementById("text-title");
     const contentInput = document.getElementById("text-content");
     const title = titleInput.value.trim();
@@ -163,7 +347,7 @@ async function addText() {
 
     showLoading("Indexing text...");
     try {
-        const res = await fetch(`${API}/api/documents/add-text`, {
+        const res = await fetch(courseApi("/documents/add-text"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ title, text }),
@@ -183,8 +367,9 @@ async function addText() {
 // ── Documents ──────────────────────────────────────────────────────────────
 
 async function loadDocuments() {
+    if (!activeCourseId) return;
     try {
-        const res = await fetch(`${API}/api/documents`);
+        const res = await fetch(courseApi("/documents"));
         const data = await res.json();
         documents = data.documents || [];
         renderDocuments();
@@ -221,10 +406,11 @@ function renderDocuments() {
 }
 
 async function deleteDocument(docId) {
+    if (!activeCourseId) return;
     if (!confirm("Delete this document and all its data?")) return;
 
     try {
-        const res = await fetch(`${API}/api/documents/${docId}`, { method: "DELETE" });
+        const res = await fetch(courseApi(`/documents/${docId}`), { method: "DELETE" });
         if (!res.ok) throw new Error("Delete failed");
     } catch (err) {
         alert(`Error: ${err.message}`);
@@ -236,8 +422,14 @@ async function deleteDocument(docId) {
 // ── Stats ──────────────────────────────────────────────────────────────────
 
 async function loadStats() {
+    if (!activeCourseId) {
+        document.getElementById("stat-docs").textContent = "0";
+        document.getElementById("stat-chunks").textContent = "0";
+        document.getElementById("stat-qa").textContent = "0";
+        return;
+    }
     try {
-        const res = await fetch(`${API}/api/stats`);
+        const res = await fetch(courseApi("/stats"));
         const stats = await res.json();
         document.getElementById("stat-docs").textContent = stats.total_documents || 0;
         document.getElementById("stat-chunks").textContent = stats.total_chunks || 0;
@@ -278,12 +470,13 @@ function initSearch() {
 }
 
 async function doSearch(query) {
+    if (!activeCourseId) return;
     query = query.trim();
     const results = document.getElementById("search-results");
     if (!query) { results.classList.add("hidden"); return; }
 
     try {
-        const res = await fetch(`${API}/api/search`, {
+        const res = await fetch(courseApi("/search"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ query, top_k: 8 }),
@@ -307,7 +500,7 @@ async function doSearch(query) {
     }
 }
 
-// ── Chat ───────────────────────────────────────────────────────────────────
+// ── Chat (full page) ──────────────────────────────────────────────────────
 
 function initChat() {
     const input = document.getElementById("chat-input");
@@ -320,6 +513,7 @@ function initChat() {
 }
 
 async function sendChat() {
+    if (!activeCourseId) return;
     const input = document.getElementById("chat-input");
     const message = input.value.trim();
     if (!message) return;
@@ -327,12 +521,11 @@ async function sendChat() {
     input.value = "";
     appendChatMsg("user", message);
 
-    // Show typing indicator
     const typingEl = appendChatMsg("assistant", "Thinking...");
     typingEl.style.opacity = "0.5";
 
     try {
-        const res = await fetch(`${API}/api/chat`, {
+        const res = await fetch(courseApi("/chat"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message, session_id: sessionId }),
@@ -350,7 +543,6 @@ async function sendChat() {
 
 function appendChatMsg(role, text) {
     const container = document.getElementById("chat-messages");
-    // Remove welcome message
     const welcome = container.querySelector(".chat-welcome");
     if (welcome) welcome.remove();
 
@@ -421,9 +613,10 @@ function toggleSummary(header) {
 
 function initConnections() {
     document.getElementById("refresh-connections-btn").addEventListener("click", async () => {
+        if (!activeCourseId) return;
         showLoading("Computing knowledge connections...");
         try {
-            const res = await fetch(`${API}/api/connections/refresh`, { method: "POST" });
+            const res = await fetch(courseApi("/connections/refresh"), { method: "POST" });
             if (!res.ok) throw new Error("Refresh failed");
             await loadDocuments();
             renderConnections();
@@ -435,13 +628,14 @@ function initConnections() {
 }
 
 async function renderConnections() {
+    if (!activeCourseId) return;
     const canvas = document.getElementById("connections-canvas");
     const emptyEl = document.getElementById("connections-empty");
     const ctx = canvas.getContext("2d");
 
     let connections = [];
     try {
-        const res = await fetch(`${API}/api/connections`);
+        const res = await fetch(courseApi("/connections"));
         const data = await res.json();
         connections = data.connections || [];
     } catch (err) {
@@ -457,12 +651,10 @@ async function renderConnections() {
     canvas.style.display = "block";
     emptyEl.style.display = "none";
 
-    // Resize canvas
     const rect = canvas.parentElement.getBoundingClientRect();
     canvas.width = rect.width;
     canvas.height = Math.max(rect.height, 400);
 
-    // Build node positions (simple circle layout)
     const nodes = {};
     documents.forEach((doc, i) => {
         const angle = (2 * Math.PI * i) / documents.length - Math.PI / 2;
@@ -476,10 +668,8 @@ async function renderConnections() {
         };
     });
 
-    // Clear
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw edges
     const seen = new Set();
     connections.forEach(conn => {
         const key = [conn.from_doc_id, conn.to_doc_id].sort().join("-");
@@ -497,7 +687,6 @@ async function renderConnections() {
         ctx.lineWidth = Math.max(1, conn.similarity * 4);
         ctx.stroke();
 
-        // Label
         const mx = (from.x + to.x) / 2;
         const my = (from.y + to.y) / 2;
         ctx.fillStyle = "rgba(156, 163, 175, 0.7)";
@@ -506,11 +695,9 @@ async function renderConnections() {
         ctx.fillText((conn.similarity * 100).toFixed(0) + "%", mx, my - 4);
     });
 
-    // Draw nodes
     const typeColors = { pdf: "#f87171", url: "#60a5fa", text: "#4ade80" };
 
     Object.values(nodes).forEach(node => {
-        // Circle
         ctx.beginPath();
         ctx.arc(node.x, node.y, 20, 0, Math.PI * 2);
         ctx.fillStyle = typeColors[node.type] || "#6366f1";
@@ -519,7 +706,6 @@ async function renderConnections() {
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // Label
         ctx.fillStyle = "#e4e4e7";
         ctx.font = "12px Inter, sans-serif";
         ctx.textAlign = "center";
@@ -539,112 +725,109 @@ function hideLoading() {
     document.getElementById("loading-overlay").classList.add("hidden");
 }
 
-// ── Podcast ────────────────────────────────────────────────────────────────
+// ── Floating Chat Widget ──────────────────────────────────────────────────
 
-let podcastScript = "";
+function initChatWidget() {
+    const toggle = document.getElementById("chat-widget-toggle");
+    const panel = document.getElementById("chat-widget-panel");
+    const close = document.getElementById("chat-widget-close");
+    const input = document.getElementById("chat-widget-input");
+    const send = document.getElementById("chat-widget-send");
 
-function initPodcast() {
-    document.getElementById("podcast-generate-btn").addEventListener("click", generatePodcastScript);
-    document.getElementById("podcast-synthesize-btn").addEventListener("click", synthesizePodcast);
-}
+    toggle.addEventListener("click", () => {
+        panel.classList.toggle("hidden");
+        if (!panel.classList.contains("hidden")) {
+            input.focus();
+            updateWidgetCourseName();
+        }
+    });
 
-function renderPodcastDocs() {
-    const list = document.getElementById("podcast-doc-list");
-    if (!documents.length) {
-        list.innerHTML = '<p class="empty-state" style="padding:20px">No documents yet.</p>';
-        return;
-    }
-    list.innerHTML = documents.map(doc => `
-        <label class="podcast-doc-item">
-            <input type="checkbox" class="podcast-doc-check" value="${doc.doc_id}">
-            <span class="doc-type ${doc.source_type}">${doc.source_type}</span>
-            <span class="podcast-doc-title">${escapeHtml(doc.title)}</span>
-        </label>
-    `).join("");
-}
+    close.addEventListener("click", () => {
+        panel.classList.add("hidden");
+    });
 
-async function generatePodcastScript() {
-    const checked = Array.from(document.querySelectorAll(".podcast-doc-check:checked")).map(c => c.value);
-    if (!checked.length) { alert("Select at least one document."); return; }
-
-    const topic = document.getElementById("podcast-topic").value.trim();
-
-    showLoading("Generating podcast script (this may take 30–60 seconds)...");
-    document.getElementById("podcast-generate-btn").disabled = true;
-
-    try {
-        const res = await fetch(`${API}/api/podcast/generate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ doc_ids: checked, topic }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to generate script");
-
-        podcastScript = data.script;
-        document.getElementById("podcast-script").value = podcastScript;
-        document.getElementById("podcast-script-header").classList.remove("hidden");
-
-        const meta = document.getElementById("podcast-meta");
-        meta.textContent = `${data.word_count.toLocaleString()} words · ${data.doc_count} document${data.doc_count !== 1 ? "s" : ""}`;
-        meta.classList.remove("hidden");
-
-        document.getElementById("podcast-synthesize-btn").classList.remove("hidden");
-        document.getElementById("podcast-player-wrap").classList.add("hidden");
-    } catch (err) {
-        alert(`Error: ${err.message}`);
-    }
-
-    hideLoading();
-    document.getElementById("podcast-generate-btn").disabled = false;
-}
-
-async function synthesizePodcast() {
-    if (!podcastScript) return;
-
-    showLoading("Synthesizing audio with Kokoro TTS — this takes a few minutes for a full episode...");
-    document.getElementById("podcast-synthesize-btn").disabled = true;
-
-    try {
-        const res = await fetch(`${API}/api/podcast/synthesize`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ script: podcastScript }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Synthesis failed");
-
-        const audio = document.getElementById("podcast-audio");
-        audio.src = data.url + "?t=" + Date.now();
-
-        const dl = document.getElementById("podcast-download");
-        dl.href = data.url;
-        dl.download = data.filename;
-
-        document.getElementById("podcast-player-wrap").classList.remove("hidden");
-    } catch (err) {
-        alert(`Error: ${err.message}`);
-    }
-
-    hideLoading();
-    document.getElementById("podcast-synthesize-btn").disabled = false;
-}
-
-function copyPodcastScript() {
-    const ta = document.getElementById("podcast-script");
-    navigator.clipboard.writeText(ta.value).then(() => {
-        const btn = document.querySelector("#podcast-script-header button");
-        const orig = btn.textContent;
-        btn.textContent = "Copied!";
-        setTimeout(() => { btn.textContent = orig; }, 1500);
+    send.addEventListener("click", () => sendWidgetChat());
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendWidgetChat();
     });
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+function updateWidgetCourseName() {
+    const label = document.getElementById("chat-widget-course-name");
+    if (activeCourseId) {
+        const course = courses.find(c => c.id === activeCourseId);
+        label.textContent = course ? `Chat — ${course.name}` : "Course Chat";
+    } else {
+        label.textContent = "Course Chat";
+    }
+}
 
-function escapeHtml(str) {
-    if (!str) return "";
+function clearWidgetMessages() {
+    const container = document.getElementById("chat-widget-messages");
+    container.innerHTML = '<div class="chat-welcome"><p>Ask about your course materials...</p></div>';
+}
+
+async function sendWidgetChat() {
+    if (!activeCourseId) return;
+    const input = document.getElementById("chat-widget-input");
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.value = "";
+    appendWidgetMsg("user", message);
+
+    const typingEl = appendWidgetMsg("assistant", "Thinking...");
+    typingEl.style.opacity = "0.5";
+
+    try {
+        const res = await fetch(courseApi("/chat"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message, session_id: `widget_${sessionId}` }),
+        });
+        const data = await res.json();
+
+        typingEl.remove();
+        appendWidgetAnswer(data);
+        loadStats();
+    } catch (err) {
+        typingEl.remove();
+        appendWidgetMsg("assistant", `Error: ${err.message}`);
+    }
+}
+
+function appendWidgetMsg(role, text) {
+    const container = document.getElementById("chat-widget-messages");
+    const welcome = container.querySelector(".chat-welcome");
+    if (welcome) welcome.remove();
+
     const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
+    div.className = `chat-msg ${role}`;
+    div.textContent = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+}
+
+function appendWidgetAnswer(data) {
+    const container = document.getElementById("chat-widget-messages");
+
+    const div = document.createElement("div");
+    div.className = "chat-msg assistant";
+
+    let html = "";
+    if (data.confidence) {
+        html += `<span class="chat-confidence ${data.confidence}">${data.confidence}</span><br>`;
+    }
+    html += escapeHtml(data.answer);
+
+    if (data.sources && data.sources.length) {
+        html += '<div class="chat-sources">Sources: ';
+        html += data.sources.map(s => escapeHtml(s.title)).join(", ");
+        html += "</div>";
+    }
+
+    div.innerHTML = html;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
 }

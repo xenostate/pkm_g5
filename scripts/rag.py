@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-PKM RAG module: Q&A, summarization, knowledge connections, and knowledge base management.
+School Helper RAG module: Q&A, summarization, knowledge connections, and per-course knowledge base management.
 """
 
 import json
 import os
 import threading
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -41,8 +42,12 @@ def get_openai_client() -> OpenAI:
 _kb_lock = threading.Lock()
 
 
-def _empty_kb() -> dict:
+def _empty_course(course_id: str, name: str, color: str = "#6366f1") -> dict:
     return {
+        "id": course_id,
+        "name": name,
+        "color": color,
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "documents": {},
         "qa_history": [],
         "stats": {
@@ -53,12 +58,20 @@ def _empty_kb() -> dict:
     }
 
 
+def _empty_kb() -> dict:
+    return {"courses": {}, "active_course_id": None}
+
+
 def load_kb() -> dict:
     """Load knowledge base from disk."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     if KB_PATH.exists():
         with open(KB_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        # Ensure new schema
+        if "courses" not in data:
+            return _empty_kb()
+        return data
     return _empty_kb()
 
 
@@ -69,19 +82,76 @@ def save_kb(kb: dict):
         json.dump(kb, f, indent=2, ensure_ascii=False)
 
 
-def _update_stats(kb: dict):
-    """Recalculate stats from current data."""
-    kb["stats"]["total_documents"] = len(kb["documents"])
-    kb["stats"]["total_chunks"] = sum(
-        d.get("chunk_count", 0) for d in kb["documents"].values()
+def _update_stats(kb: dict, course_id: str):
+    """Recalculate stats for a course."""
+    course = kb["courses"].get(course_id)
+    if not course:
+        return
+    course["stats"]["total_documents"] = len(course["documents"])
+    course["stats"]["total_chunks"] = sum(
+        d.get("chunk_count", 0) for d in course["documents"].values()
     )
-    kb["stats"]["total_questions"] = len(kb["qa_history"])
+    course["stats"]["total_questions"] = len(course["qa_history"])
 
 
-def add_document_to_kb(kb: dict, doc_info: dict, summary: str = ""):
-    """Add a document entry to the knowledge base."""
+# ── Course management ─────────────────────────────────────────────────────
+
+def create_course(kb: dict, name: str, color: str = "#6366f1") -> str:
+    """Create a new course. Returns the course_id."""
+    course_id = uuid.uuid4().hex[:8]
     with _kb_lock:
-        kb["documents"][doc_info["doc_id"]] = {
+        kb["courses"][course_id] = _empty_course(course_id, name, color)
+        if kb["active_course_id"] is None:
+            kb["active_course_id"] = course_id
+        save_kb(kb)
+    return course_id
+
+
+def delete_course(kb: dict, course_id: str):
+    """Delete a course from the KB."""
+    with _kb_lock:
+        kb["courses"].pop(course_id, None)
+        if kb["active_course_id"] == course_id:
+            kb["active_course_id"] = next(iter(kb["courses"]), None)
+        save_kb(kb)
+
+
+def update_course(kb: dict, course_id: str, name: str = None, color: str = None):
+    """Update a course's name or color."""
+    with _kb_lock:
+        course = kb["courses"].get(course_id)
+        if not course:
+            return
+        if name is not None:
+            course["name"] = name
+        if color is not None:
+            course["color"] = color
+        save_kb(kb)
+
+
+def list_courses(kb: dict) -> list[dict]:
+    """List all courses with their stats."""
+    return [
+        {
+            "id": c["id"],
+            "name": c["name"],
+            "color": c["color"],
+            "created_at": c.get("created_at", ""),
+            "stats": c["stats"],
+        }
+        for c in kb["courses"].values()
+    ]
+
+
+# ── Document KB management (per-course) ───────────────────────────────────
+
+def add_document_to_kb(kb: dict, course_id: str, doc_info: dict, summary: str = ""):
+    """Add a document entry to a course's knowledge base."""
+    with _kb_lock:
+        course = kb["courses"].get(course_id)
+        if not course:
+            return
+        course["documents"][doc_info["doc_id"]] = {
             "id": doc_info["doc_id"],
             "title": doc_info["title"],
             "source_type": doc_info.get("source_type", "unknown"),
@@ -92,41 +162,46 @@ def add_document_to_kb(kb: dict, doc_info: dict, summary: str = ""):
             "summary": summary,
             "connections": [],
         }
-        _update_stats(kb)
+        _update_stats(kb, course_id)
         save_kb(kb)
 
 
-def remove_document_from_kb(kb: dict, doc_id: str):
-    """Remove a document and its connections from the KB."""
+def remove_document_from_kb(kb: dict, course_id: str, doc_id: str):
+    """Remove a document and its connections from a course's KB."""
     with _kb_lock:
-        kb["documents"].pop(doc_id, None)
+        course = kb["courses"].get(course_id)
+        if not course:
+            return
+        course["documents"].pop(doc_id, None)
         # Remove connections referencing this doc
-        for doc in kb["documents"].values():
+        for doc in course["documents"].values():
             doc["connections"] = [
                 c for c in doc.get("connections", []) if c.get("doc_id") != doc_id
             ]
-        _update_stats(kb)
+        _update_stats(kb, course_id)
         save_kb(kb)
 
 
-def add_qa_to_kb(kb: dict, question: str, answer: str, sources: list):
-    """Add a Q&A entry to the knowledge base."""
-    import uuid
+def add_qa_to_kb(kb: dict, course_id: str, question: str, answer: str, sources: list):
+    """Add a Q&A entry to a course's knowledge base."""
     with _kb_lock:
-        kb["qa_history"].append({
+        course = kb["courses"].get(course_id)
+        if not course:
+            return
+        course["qa_history"].append({
             "id": f"q_{uuid.uuid4().hex[:8]}",
             "question": question,
             "answer": answer,
             "sources": sources,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
-        _update_stats(kb)
+        _update_stats(kb, course_id)
         save_kb(kb)
 
 
 # ── RAG Q&A ────────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """You are a knowledgeable PKM (Personal Knowledge Management) assistant that answers questions using ONLY the provided source chunks from the user's document collection.
+SYSTEM_PROMPT = """You are a knowledgeable course assistant that answers questions using ONLY the provided source chunks from the student's document collection.
 
 Rules:
 1. Answer ONLY from the sources below. If the sources don't contain the answer, say "I don't have enough information from your documents to answer this."
@@ -147,13 +222,13 @@ def build_context(retrieval_result: dict) -> str:
     return "\n".join(lines)
 
 
-def answer_question(query: str, conversation_history: list = None, model=None) -> dict:
+def answer_question(query: str, conversation_history: list = None, model=None, course_id: str = "") -> dict:
     """
-    RAG Q&A: retrieve relevant chunks, generate answer with OpenAI.
+    RAG Q&A: retrieve relevant chunks from a course, generate answer with OpenAI.
 
     Returns: {answer, sources, confidence}
     """
-    retrieval = retrieve(query, top_k=TOP_K, model=model)
+    retrieval = retrieve(query, top_k=TOP_K, model=model, course_id=course_id)
     context = build_context(retrieval)
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -221,16 +296,20 @@ def summarize_document(text: str, title: str) -> str:
 
 # ── Knowledge Connections ──────────────────────────────────────────────────
 
-def find_connections(doc_id: str, kb: dict, model=None) -> list[dict]:
+def find_connections(doc_id: str, kb: dict, course_id: str, model=None) -> list[dict]:
     """
-    Find connections between a document and all other documents.
+    Find connections between a document and all other documents in the same course.
     Uses embedding similarity between chunk centroids.
     Returns list of {doc_id, title, similarity, description}.
     """
     if model is None:
         model = get_model()
 
-    collection = get_chroma_collection()
+    course = kb["courses"].get(course_id)
+    if not course:
+        return []
+
+    collection = get_chroma_collection(course_id)
 
     # Get target document chunks
     target_results = collection.get(
@@ -246,10 +325,10 @@ def find_connections(doc_id: str, kb: dict, model=None) -> list[dict]:
     target_centroid = target_centroid / np.linalg.norm(target_centroid)
 
     connections = []
-    target_title = kb["documents"].get(doc_id, {}).get("title", "")
-    target_summary = kb["documents"].get(doc_id, {}).get("summary", "")
+    target_title = course["documents"].get(doc_id, {}).get("title", "")
+    target_summary = course["documents"].get(doc_id, {}).get("summary", "")
 
-    for other_id, other_doc in kb["documents"].items():
+    for other_id, other_doc in course["documents"].items():
         if other_id == doc_id:
             continue
 
@@ -307,10 +386,13 @@ def find_connections(doc_id: str, kb: dict, model=None) -> list[dict]:
     return connections
 
 
-def refresh_all_connections(kb: dict, model=None) -> dict:
-    """Recompute connections for all documents. Returns updated KB."""
-    for doc_id in list(kb["documents"].keys()):
-        connections = find_connections(doc_id, kb, model=model)
-        kb["documents"][doc_id]["connections"] = connections
+def refresh_all_connections(kb: dict, course_id: str, model=None) -> dict:
+    """Recompute connections for all documents in a course. Returns updated KB."""
+    course = kb["courses"].get(course_id)
+    if not course:
+        return kb
+    for doc_id in list(course["documents"].keys()):
+        connections = find_connections(doc_id, kb, course_id, model=model)
+        course["documents"][doc_id]["connections"] = connections
     save_kb(kb)
     return kb

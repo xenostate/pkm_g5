@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PKM Retriever: embed a query, search ChromaDB, return ranked results.
+School Helper Retriever: embed a query, search a course's ChromaDB collection, return ranked results.
 """
 
 import os
@@ -19,9 +19,9 @@ THRESHOLD_MEDIUM = float(os.environ.get("THRESHOLD_MEDIUM", "0.5"))
 # ── Retrieval ──────────────────────────────────────────────────────────────
 
 
-def retrieve(query: str, top_k: int = 5, model=None) -> dict:
+def retrieve(query: str, top_k: int = 5, model=None, course_id: str = "") -> dict:
     """
-    Search ChromaDB for chunks matching the query.
+    Search ChromaDB for chunks matching the query within a course.
 
     Returns:
         {
@@ -38,7 +38,7 @@ def retrieve(query: str, top_k: int = 5, model=None) -> dict:
         f"query: {query}", normalize_embeddings=True
     ).tolist()
 
-    collection = get_chroma_collection()
+    collection = get_chroma_collection(course_id)
 
     # Check if collection has any documents
     if collection.count() == 0:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PKM Podcast module: generate long podcast scripts and synthesize audio with Kokoro TTS.
+School Helper Podcast module: generate long podcast scripts and synthesize audio with Kokoro TTS.
 """
 
 import os
@@ -73,18 +73,24 @@ FORMAT RULES — strictly follow these:
 """
 
 
-def generate_podcast_script(doc_ids: list[str], kb: dict, topic: str = "") -> dict:
+def generate_podcast_script(doc_ids: list[str], kb: dict, course_id: str = "", topic: str = "") -> dict:
     """
     Generate a long, engaging two-host podcast script from selected documents.
     Returns {script, doc_count, word_count}.
     """
-    collection = get_chroma_collection()
+    # Get the course's documents
+    if course_id and course_id in kb.get("courses", {}):
+        course_docs = kb["courses"][course_id]["documents"]
+    else:
+        course_docs = {}
+
+    collection = get_chroma_collection(course_id)
 
     summaries_lines = []
     content_blocks = []
 
     for doc_id in doc_ids:
-        doc = kb["documents"].get(doc_id)
+        doc = course_docs.get(doc_id)
         if not doc:
             continue
 

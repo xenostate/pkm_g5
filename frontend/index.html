@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PKM — Personal Knowledge Management</title>
+    <title>School Helper</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
@@ -11,8 +11,8 @@
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h1 class="logo">PKM</h1>
-                <span class="logo-sub">Knowledge Manager</span>
+                <h1 class="logo">School Helper</h1>
+                <span class="logo-sub">Course Knowledge Manager</span>
             </div>
             <nav class="nav">
                 <a href="#documents" class="nav-item active" data-page="documents">
@@ -27,9 +27,6 @@
                 <a href="#chat" class="nav-item" data-page="chat">
                     <span class="nav-icon">&#128172;</span> Chat
                 </a>
-                <a href="#podcast" class="nav-item" data-page="podcast">
-                    <span class="nav-icon">&#127911;</span> Podcast
-                </a>
             </nav>
             <div class="sidebar-stats" id="sidebar-stats">
                 <div class="stat"><span class="stat-num" id="stat-docs">0</span> docs</div>
@@ -40,12 +37,27 @@
 
         <!-- Main content -->
         <main class="main">
+            <!-- Course tab bar -->
+            <div class="course-tab-bar" id="course-tab-bar">
+                <div class="course-tabs" id="course-tabs"></div>
+                <button class="course-add-btn" id="course-add-btn" title="Add Course">+</button>
+            </div>
+
             <!-- Search bar -->
             <div class="search-bar">
-                <input type="text" id="search-input" placeholder="Search your knowledge base..." autocomplete="off">
+                <input type="text" id="search-input" placeholder="Search your course materials..." autocomplete="off">
                 <button id="search-btn" class="btn btn-primary">Search</button>
             </div>
             <div id="search-results" class="search-results hidden"></div>
+
+            <!-- No-course welcome -->
+            <div id="no-course-prompt" class="no-course-prompt hidden">
+                <div class="no-course-content">
+                    <h2>Welcome to School Helper</h2>
+                    <p>Create your first course to get started.</p>
+                    <button id="no-course-create-btn" class="btn btn-primary">Create Course</button>
+                </div>
+            </div>
 
             <!-- Pages -->
             <div id="page-documents" class="page active">
@@ -118,7 +130,7 @@
                 <div class="chat-container">
                     <div class="chat-messages" id="chat-messages">
                         <div class="chat-welcome">
-                            <p>Ask questions about your documents. The AI will answer based on your knowledge base.</p>
+                            <p>Ask questions about your documents. The AI will answer based on your course materials.</p>
                         </div>
                     </div>
                     <div class="chat-input-area">
@@ -127,57 +139,60 @@
                     </div>
                 </div>
             </div>
-            <div id="page-podcast" class="page">
-                <div class="page-header">
-                    <h2>Podcast Generator</h2>
-                </div>
-
-                <div class="podcast-layout">
-                    <!-- Left: controls -->
-                    <div class="podcast-controls">
-                        <div class="podcast-section">
-                            <label class="podcast-label">Select documents</label>
-                            <div class="podcast-doc-list" id="podcast-doc-list">
-                                <p class="empty-state" style="padding:20px">No documents yet.</p>
-                            </div>
-                        </div>
-
-                        <div class="podcast-section">
-                            <label class="podcast-label">Focus topic <span class="podcast-optional">(optional)</span></label>
-                            <input type="text" id="podcast-topic" placeholder="e.g. key arguments, practical applications...">
-                        </div>
-
-                        <button id="podcast-generate-btn" class="btn btn-primary podcast-action-btn">Generate Script</button>
-
-                        <div id="podcast-meta" class="podcast-meta hidden"></div>
-
-                        <button id="podcast-synthesize-btn" class="btn btn-secondary podcast-action-btn hidden">
-                            &#127911; Generate Audio
-                        </button>
-
-                        <div id="podcast-player-wrap" class="podcast-player-wrap hidden">
-                            <audio id="podcast-audio" controls></audio>
-                            <a id="podcast-download" class="btn btn-secondary" download>Download WAV</a>
-                        </div>
-                    </div>
-
-                    <!-- Right: script -->
-                    <div class="podcast-script-panel">
-                        <div class="podcast-script-header hidden" id="podcast-script-header">
-                            <span>Script</span>
-                            <button class="btn btn-secondary" onclick="copyPodcastScript()" style="font-size:14px;padding:6px 14px">Copy</button>
-                        </div>
-                        <textarea id="podcast-script" class="podcast-script" readonly placeholder="Your podcast script will appear here..."></textarea>
-                    </div>
-                </div>
-            </div>
         </main>
+    </div>
+
+    <!-- Floating chat widget -->
+    <div id="chat-widget" class="chat-widget">
+        <button id="chat-widget-toggle" class="chat-widget-toggle" title="Chat with your course">
+            <span class="chat-widget-icon">&#128172;</span>
+        </button>
+        <div id="chat-widget-panel" class="chat-widget-panel hidden">
+            <div class="chat-widget-header">
+                <span id="chat-widget-course-name">Course Chat</span>
+                <button id="chat-widget-close" class="chat-widget-close">&times;</button>
+            </div>
+            <div class="chat-widget-messages" id="chat-widget-messages">
+                <div class="chat-welcome"><p>Ask about your course materials...</p></div>
+            </div>
+            <div class="chat-widget-input">
+                <input type="text" id="chat-widget-input" placeholder="Ask a question...">
+                <button id="chat-widget-send" class="btn btn-primary">Send</button>
+            </div>
+        </div>
     </div>
 
     <!-- Loading overlay -->
     <div id="loading-overlay" class="loading-overlay hidden">
         <div class="spinner"></div>
         <p id="loading-text">Processing...</p>
+    </div>
+
+    <!-- Course creation modal -->
+    <div id="course-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3>Create Course</h3>
+            <div class="modal-body">
+                <input type="text" id="course-name-input" placeholder="Course name (e.g. CS 101)" autocomplete="off">
+                <div class="color-picker">
+                    <label>Color:</label>
+                    <div class="color-options" id="color-options">
+                        <button class="color-swatch active" data-color="#6366f1" style="background:#6366f1"></button>
+                        <button class="color-swatch" data-color="#f87171" style="background:#f87171"></button>
+                        <button class="color-swatch" data-color="#60a5fa" style="background:#60a5fa"></button>
+                        <button class="color-swatch" data-color="#4ade80" style="background:#4ade80"></button>
+                        <button class="color-swatch" data-color="#facc15" style="background:#facc15"></button>
+                        <button class="color-swatch" data-color="#fb923c" style="background:#fb923c"></button>
+                        <button class="color-swatch" data-color="#a78bfa" style="background:#a78bfa"></button>
+                        <button class="color-swatch" data-color="#f472b6" style="background:#f472b6"></button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="course-modal-cancel" class="btn btn-secondary">Cancel</button>
+                <button id="course-modal-create" class="btn btn-primary">Create</button>
+            </div>
+        </div>
     </div>
 
     <script src="/static/app.js"></script>

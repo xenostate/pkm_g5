@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PKM Indexer: ingest PDFs, URLs, and text notes into ChromaDB.
+School Helper Indexer: ingest PDFs, URLs, and text notes into per-course ChromaDB collections.
 
 Provides functions to add, delete, and list documents with their embeddings.
 """
@@ -41,22 +41,40 @@ def get_model():
     return _model
 
 
-# ── ChromaDB ───────────────────────────────────────────────────────────────
+# ── ChromaDB (multi-collection) ───────────────────────────────────────────
 
 _chroma_client = None
-_chroma_collection = None
+_collections: dict = {}
 
 
-def get_chroma_collection():
-    global _chroma_client, _chroma_collection
-    if _chroma_collection is None:
+def get_chroma_client():
+    global _chroma_client
+    if _chroma_client is None:
         CHROMA_DIR.mkdir(parents=True, exist_ok=True)
         _chroma_client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-        _chroma_collection = _chroma_client.get_or_create_collection(
-            name="pkm_chunks",
+    return _chroma_client
+
+
+def get_chroma_collection(course_id: str = ""):
+    if course_id not in _collections:
+        client = get_chroma_client()
+        name = f"course_{course_id}_chunks" if course_id else "pkm_chunks"
+        _collections[course_id] = client.get_or_create_collection(
+            name=name,
             metadata={"hnsw:space": "cosine"},
         )
-    return _chroma_collection
+    return _collections[course_id]
+
+
+def delete_course_collection(course_id: str):
+    """Delete the entire ChromaDB collection for a course."""
+    client = get_chroma_client()
+    name = f"course_{course_id}_chunks"
+    try:
+        client.delete_collection(name=name)
+    except Exception:
+        pass
+    _collections.pop(course_id, None)
 
 
 # ── HTML cleaning ──────────────────────────────────────────────────────────
@@ -200,7 +218,7 @@ def _generate_doc_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
-def _embed_and_store(doc_id: str, chunks: list[str], metadata_base: dict, model=None):
+def _embed_and_store(doc_id: str, chunks: list[str], metadata_base: dict, model=None, course_id: str = ""):
     """Embed chunks and store in ChromaDB. Returns chunk count."""
     if not chunks:
         return 0
@@ -208,7 +226,7 @@ def _embed_and_store(doc_id: str, chunks: list[str], metadata_base: dict, model=
     if model is None:
         model = get_model()
 
-    collection = get_chroma_collection()
+    collection = get_chroma_collection(course_id)
 
     texts_to_embed = [f"passage: {c}" for c in chunks]
     embeddings = model.encode(texts_to_embed, show_progress_bar=False, normalize_embeddings=True)
@@ -236,7 +254,7 @@ def _embed_and_store(doc_id: str, chunks: list[str], metadata_base: dict, model=
 
 # ── Ingestion functions ────────────────────────────────────────────────────
 
-def ingest_pdf(file_bytes: bytes, filename: str, model=None) -> dict:
+def ingest_pdf(file_bytes: bytes, filename: str, model=None, course_id: str = "") -> dict:
     """Ingest a PDF file. Returns {doc_id, title, chunk_count, text_length, full_text}."""
     from pypdf import PdfReader
     import io
@@ -260,6 +278,7 @@ def ingest_pdf(file_bytes: bytes, filename: str, model=None) -> dict:
         doc_id, chunks,
         {"source_type": "pdf", "source": filename, "title": title},
         model=model,
+        course_id=course_id,
     )
 
     return {
@@ -271,7 +290,7 @@ def ingest_pdf(file_bytes: bytes, filename: str, model=None) -> dict:
     }
 
 
-def ingest_url(url: str, model=None) -> dict:
+def ingest_url(url: str, model=None, course_id: str = "") -> dict:
     """Ingest a single web page. Returns {doc_id, title, chunk_count, text_length, full_text}."""
     resp = requests.get(url, timeout=15, headers={"User-Agent": "PKM-Agent/1.0"})
     resp.raise_for_status()
@@ -292,6 +311,7 @@ def ingest_url(url: str, model=None) -> dict:
         doc_id, chunks,
         {"source_type": "url", "source": url, "title": title},
         model=model,
+        course_id=course_id,
     )
 
     return {
@@ -303,7 +323,7 @@ def ingest_url(url: str, model=None) -> dict:
     }
 
 
-def ingest_text(text: str, title: str, model=None) -> dict:
+def ingest_text(text: str, title: str, model=None, course_id: str = "") -> dict:
     """Ingest a plain text note. Returns {doc_id, title, chunk_count, text_length, full_text}."""
     if not text.strip():
         raise ValueError("Text content is empty.")
@@ -315,6 +335,7 @@ def ingest_text(text: str, title: str, model=None) -> dict:
         doc_id, chunks,
         {"source_type": "text", "source": None, "title": title},
         model=model,
+        course_id=course_id,
     )
 
     return {
@@ -326,18 +347,18 @@ def ingest_text(text: str, title: str, model=None) -> dict:
     }
 
 
-def delete_document(doc_id: str):
+def delete_document(doc_id: str, course_id: str = ""):
     """Delete all chunks for a document from ChromaDB."""
-    collection = get_chroma_collection()
+    collection = get_chroma_collection(course_id)
     # Get all chunk IDs for this document
     results = collection.get(where={"doc_id": doc_id})
     if results["ids"]:
         collection.delete(ids=results["ids"])
 
 
-def list_documents() -> list[dict]:
+def list_documents(course_id: str = "") -> list[dict]:
     """List unique documents from ChromaDB metadata."""
-    collection = get_chroma_collection()
+    collection = get_chroma_collection(course_id)
     all_data = collection.get(include=["metadatas"])
 
     docs = {}
@@ -356,9 +377,9 @@ def list_documents() -> list[dict]:
     return list(docs.values())
 
 
-def get_document_chunks(doc_id: str) -> list[str]:
+def get_document_chunks(doc_id: str, course_id: str = "") -> list[str]:
     """Get all chunk texts for a document, ordered by chunk_index."""
-    collection = get_chroma_collection()
+    collection = get_chroma_collection(course_id)
     results = collection.get(
         where={"doc_id": doc_id},
         include=["documents", "metadatas"],
