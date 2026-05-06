@@ -5,6 +5,7 @@ PKM RAG module: Q&A, summarization, knowledge connections, and knowledge base ma
 
 import json
 import os
+import re
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,7 +20,8 @@ from scripts.indexer import get_chroma_collection, get_model
 # ── Config ──────────────────────────────────────────────────────────────────
 
 RAG_MODEL = os.environ.get("RAG_MODEL", "gpt-4o-mini")
-TOP_K = int(os.environ.get("RAG_TOP_K", "5"))
+TOP_K = int(os.environ.get("RAG_TOP_K", "10"))
+LLM_CONTEXT_CHUNKS = int(os.environ.get("RAG_CONTEXT_CHUNKS", "8"))
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 KB_PATH = DATA_DIR / "knowledge_base.json"
@@ -44,6 +46,7 @@ _kb_lock = threading.Lock()
 def _empty_kb() -> dict:
     return {
         "documents": {},
+        "links": [],
         "qa_history": [],
         "stats": {
             "total_documents": 0,
@@ -58,7 +61,19 @@ def load_kb() -> dict:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     if KB_PATH.exists():
         with open(KB_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+            kb = json.load(f)
+            kb.setdefault("documents", {})
+            kb.setdefault("qa_history", [])
+            kb.setdefault("links", [])
+            kb.setdefault("stats", {
+                "total_documents": 0,
+                "total_chunks": 0,
+                "total_questions": 0,
+            })
+            for doc in kb["documents"].values():
+                doc.setdefault("concepts", [])
+                doc.setdefault("connections", [])
+            return kb
     return _empty_kb()
 
 
@@ -78,7 +93,148 @@ def _update_stats(kb: dict):
     kb["stats"]["total_questions"] = len(kb["qa_history"])
 
 
-def add_document_to_kb(kb: dict, doc_info: dict, summary: str = ""):
+def _safe_json_list(raw_text: str) -> list[str]:
+    """Parse a JSON list from a model response and coerce it to clean strings."""
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError:
+        start = raw_text.find("[")
+        end = raw_text.rfind("]")
+        if start != -1 and end != -1 and end > start:
+            try:
+                data = json.loads(raw_text[start:end + 1])
+            except json.JSONDecodeError:
+                data = None
+        else:
+            data = None
+
+        if data is None:
+            lines = []
+            for line in raw_text.splitlines():
+                cleaned = re.sub(r"^\s*(?:[-*]|\d+[.)])\s*", "", line).strip()
+                if cleaned:
+                    lines.append(cleaned.strip("\"'"))
+            data = lines
+
+    if not isinstance(data, list):
+        return []
+
+    concepts = []
+    seen = set()
+    for item in data:
+        if not isinstance(item, str):
+            continue
+        concept = item.strip()
+        if not concept:
+            continue
+        normalized = concept.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        concepts.append(concept)
+    return concepts[:10]
+
+
+def extract_concepts(text: str, model_name: str | None = None) -> list[str]:
+    """Extract 5-10 key concepts from a document."""
+    excerpt = text[:2000]
+    prompt = f"""
+Extract 5-10 key concepts from this text.
+Return JSON list only.
+Text:
+{excerpt}
+"""
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=model_name or RAG_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.1,
+        max_tokens=300,
+    )
+    content = resp.choices[0].message.content or "[]"
+    concepts = _safe_json_list(content)
+
+    if concepts:
+        return concepts
+
+    # Fallback: recover likely key noun phrases from short lines or comma-separated output.
+    fallback = []
+    seen = set()
+    for piece in re.split(r"[\n,;]", content):
+        cleaned = re.sub(r"^\s*(?:[-*]|\d+[.)])\s*", "", piece).strip().strip("\"'")
+        if len(cleaned) < 3:
+            continue
+        normalized = cleaned.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        fallback.append(cleaned)
+    return fallback[:10]
+
+
+def refresh_missing_concepts(kb: dict, get_chunks_fn, model_name: str | None = None) -> int:
+    """Backfill concepts for documents that predate concept extraction."""
+    updated = 0
+    with _kb_lock:
+        for doc_id, doc in kb["documents"].items():
+            if doc.get("concepts"):
+                continue
+
+            chunks = get_chunks_fn(doc_id)
+            text = "\n\n".join(chunks[:4]).strip()
+            if not text:
+                text = doc.get("summary", "")
+            if not text:
+                continue
+
+            concepts = extract_concepts(text, model_name=model_name)
+            if not concepts:
+                continue
+
+            doc["concepts"] = concepts
+            updated += 1
+
+        if updated:
+            rebuild_concept_links(kb)
+            save_kb(kb)
+
+    return updated
+
+
+def rebuild_concept_links(kb: dict):
+    """Build concept-level links between documents from stored concepts."""
+    links = []
+    doc_ids = list(kb["documents"].keys())
+    for from_doc_id in doc_ids:
+        from_doc = kb["documents"][from_doc_id]
+        from_concepts = {
+            concept.strip().lower(): concept
+            for concept in from_doc.get("concepts", [])
+            if isinstance(concept, str) and concept.strip()
+        }
+        if not from_concepts:
+            continue
+        for to_doc_id in doc_ids:
+            if from_doc_id == to_doc_id:
+                continue
+            to_doc = kb["documents"][to_doc_id]
+            to_concepts = {
+                concept.strip().lower(): concept
+                for concept in to_doc.get("concepts", [])
+                if isinstance(concept, str) and concept.strip()
+            }
+            shared_keys = sorted(set(from_concepts) & set(to_concepts))
+            if not shared_keys:
+                continue
+            links.append({
+                "from": from_doc_id,
+                "to": to_doc_id,
+                "concept": [from_concepts[key] for key in shared_keys],
+            })
+    kb["links"] = links
+
+
+def add_document_to_kb(kb: dict, doc_info: dict, summary: str = "", concepts: list[str] | None = None):
     """Add a document entry to the knowledge base."""
     with _kb_lock:
         kb["documents"][doc_info["doc_id"]] = {
@@ -90,8 +246,10 @@ def add_document_to_kb(kb: dict, doc_info: dict, summary: str = ""):
             "chunk_count": doc_info.get("chunk_count", 0),
             "text_length": doc_info.get("text_length", 0),
             "summary": summary,
+            "concepts": concepts or [],
             "connections": [],
         }
+        rebuild_concept_links(kb)
         _update_stats(kb)
         save_kb(kb)
 
@@ -105,6 +263,7 @@ def remove_document_from_kb(kb: dict, doc_id: str):
             doc["connections"] = [
                 c for c in doc.get("connections", []) if c.get("doc_id") != doc_id
             ]
+        rebuild_concept_links(kb)
         _update_stats(kb)
         save_kb(kb)
 
@@ -126,45 +285,139 @@ def add_qa_to_kb(kb: dict, question: str, answer: str, sources: list):
 
 # ── RAG Q&A ────────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """You are a knowledgeable PKM (Personal Knowledge Management) assistant that answers questions using ONLY the provided source chunks from the user's document collection.
-
-Rules:
-1. Answer ONLY from the sources below. If the sources don't contain the answer, say "I don't have enough information from your documents to answer this."
-2. Keep answers concise and factual.
-3. Reference which document(s) your answer comes from.
-4. Answer in the same language as the user's question.
-5. If the user's question is a follow-up referencing a previous message, use the conversation history to understand their intent.
-"""
-
-
-def build_context(retrieval_result: dict) -> str:
+def build_context(results: list[dict]) -> str:
     """Format retrieved chunks into numbered context block."""
     lines = []
-    for i, r in enumerate(retrieval_result["results"], 1):
+    for i, r in enumerate(results, 1):
         lines.append(f"[{i}] (score: {r['score']}) {r['title']}")
         lines.append(r["chunk_text"])
         lines.append("")
     return "\n".join(lines)
 
 
-def answer_question(query: str, conversation_history: list = None, model=None) -> dict:
+def group_results_by_document(results: list[dict]) -> dict[str, list[dict]]:
+    """Group retrieved chunks by doc_id while preserving retrieval order."""
+    grouped: dict[str, list[dict]] = {}
+    for result in results:
+        doc_id = result.get("doc_id", "")
+        if not doc_id:
+            continue
+        if doc_id not in grouped:
+            grouped[doc_id] = []
+        grouped[doc_id].append(result)
+    return grouped
+
+
+def _infer_related_reason(chunk_text: str, score: float) -> str:
+    """Generate a compact explanation for why a document is related."""
+    lowered = chunk_text.lower()
+    if any(term in lowered for term in [" is defined as ", " refers to ", " definition", " means "]):
+        return "definition"
+    if any(term in lowered for term in ["example", "for instance", "such as"]):
+        return "example"
+    if any(term in lowered for term in ["because", "therefore", "in summary", "overview", "explains"]):
+        return "expanded explanation"
+    if score >= 0.8:
+        return "strong concept overlap"
+    return "matching concept"
+
+
+def build_related_docs(retrieval_result: dict) -> list[dict]:
+    """Summarize other retrieved documents that discuss the same concept."""
+    grouped = group_results_by_document(retrieval_result["results"])
+    ranked_docs = sorted(
+        grouped.items(),
+        key=lambda item: max(chunk["score"] for chunk in item[1]),
+        reverse=True,
+    )
+
+    if not ranked_docs:
+        return []
+
+    primary_doc_id = ranked_docs[0][0]
+    related_docs = []
+    for doc_id, chunks in ranked_docs:
+        if doc_id == primary_doc_id:
+            continue
+        top_chunk = max(chunks, key=lambda chunk: chunk["score"])
+        related_docs.append({
+            "doc": top_chunk.get("source") or top_chunk.get("title") or doc_id,
+            "doc_id": doc_id,
+            "reason": _infer_related_reason(top_chunk.get("chunk_text", ""), top_chunk.get("score", 0.0)),
+        })
+        if len(related_docs) == 3:
+            break
+
+    return related_docs
+
+
+def extract_top_docs(retrieval_result: dict, limit: int = 3) -> list[str]:
+    """Return the top document ids from grouped retrieval results."""
+    grouped = group_results_by_document(retrieval_result["results"])
+    ranked_docs = sorted(
+        grouped.items(),
+        key=lambda item: max(chunk["score"] for chunk in item[1]),
+        reverse=True,
+    )
+    return [doc_id for doc_id, _chunks in ranked_docs[:limit]]
+
+
+def build_graph_connections(kb: dict | None, top_docs: list[str]) -> list[dict]:
+    """Return concept graph links connected to the top retrieved documents."""
+    if not kb:
+        return []
+
+    graph_links = []
+    for link in kb.get("links", []):
+        if link.get("from") not in top_docs:
+            continue
+        from_doc = kb["documents"].get(link["from"], {})
+        to_doc = kb["documents"].get(link["to"], {})
+        graph_links.append({
+            "from": link["from"],
+            "from_title": from_doc.get("title", link["from"]),
+            "to": link["to"],
+            "to_title": to_doc.get("title", link["to"]),
+            "concept": link.get("concept", []),
+        })
+    return graph_links
+
+
+def answer_question(query: str, conversation_history: list = None, model=None, kb: dict | None = None) -> dict:
     """
     RAG Q&A: retrieve relevant chunks, generate answer with OpenAI.
 
-    Returns: {answer, sources, confidence}
+    Returns: {answer, sources, confidence, related_docs, connections}
     """
     retrieval = retrieve(query, top_k=TOP_K, model=model)
-    context = build_context(retrieval)
+    related_docs = build_related_docs(retrieval)
+    top_docs = extract_top_docs(retrieval)
+    graph_connections = build_graph_connections(kb, top_docs)
+    context_results = retrieval["results"][:LLM_CONTEXT_CHUNKS]
+    context = build_context(context_results)
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages = []
 
     if conversation_history:
         messages.extend(conversation_history)
 
-    user_msg = f"""Source chunks from your documents:
+    user_msg = f"""
+You are a learning assistant.
+
+Using the context below:
+1. Answer the question clearly
+2. Identify if the concept appears in multiple documents
+3. Explain how the documents are related
+4. Mention if one expands, contradicts, or builds on another
+5. Use only the provided context. If the answer is not in the context, say "I don't have enough information from your documents to answer this."
+6. Answer in the same language as the user's question
+
+Context:
 {context}
 
-Question: {query}"""
+Question:
+{query}
+"""
 
     messages.append({"role": "user", "content": user_msg})
 
@@ -187,6 +440,8 @@ Question: {query}"""
         "answer": answer,
         "sources": sources,
         "confidence": retrieval["confidence"],
+        "related_docs": related_docs,
+        "connections": graph_connections,
     }
 
 
@@ -221,7 +476,7 @@ def summarize_document(text: str, title: str) -> str:
 
 # ── Knowledge Connections ──────────────────────────────────────────────────
 
-def find_connections(doc_id: str, kb: dict, model=None) -> list[dict]:
+def find_connections(doc_id: str, kb: dict, model=None, describe_with_llm: bool = True) -> list[dict]:
     """
     Find connections between a document and all other documents.
     Uses embedding similarity between chunk centroids.
@@ -277,27 +532,30 @@ def find_connections(doc_id: str, kb: dict, model=None) -> list[dict]:
     # Sort by similarity descending
     connections.sort(key=lambda x: x["similarity"], reverse=True)
 
-    # Use LLM to describe top connections
-    client = get_openai_client()
-    for conn in connections[:5]:  # Only describe top 5 to save API calls
-        try:
-            resp = client.chat.completions.create(
-                model=RAG_MODEL,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "In one concise sentence, describe how these two documents are related based on their summaries.",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Document 1: '{target_title}'\nSummary: {target_summary[:500]}\n\nDocument 2: '{conn['title']}'\nSummary: {conn['other_summary'][:500]}",
-                    },
-                ],
-                temperature=0.1,
-                max_tokens=100,
-            )
-            conn["description"] = resp.choices[0].message.content
-        except Exception:
+    if describe_with_llm:
+        client = get_openai_client()
+        for conn in connections[:5]:  # Only describe top 5 to save API calls
+            try:
+                resp = client.chat.completions.create(
+                    model=RAG_MODEL,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "In one concise sentence, describe how these two documents are related based on their summaries.",
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Document 1: '{target_title}'\nSummary: {target_summary[:500]}\n\nDocument 2: '{conn['title']}'\nSummary: {conn['other_summary'][:500]}",
+                        },
+                    ],
+                    temperature=0.1,
+                    max_tokens=100,
+                )
+                conn["description"] = resp.choices[0].message.content
+            except Exception:
+                conn["description"] = f"Related to {conn['title']} (similarity: {conn['similarity']})"
+    else:
+        for conn in connections:
             conn["description"] = f"Related to {conn['title']} (similarity: {conn['similarity']})"
 
     # Clean up temp field
@@ -307,10 +565,10 @@ def find_connections(doc_id: str, kb: dict, model=None) -> list[dict]:
     return connections
 
 
-def refresh_all_connections(kb: dict, model=None) -> dict:
+def refresh_all_connections(kb: dict, model=None, describe_with_llm: bool = True) -> dict:
     """Recompute connections for all documents. Returns updated KB."""
     for doc_id in list(kb["documents"].keys()):
-        connections = find_connections(doc_id, kb, model=model)
+        connections = find_connections(doc_id, kb, model=model, describe_with_llm=describe_with_llm)
         kb["documents"][doc_id]["connections"] = connections
     save_kb(kb)
     return kb

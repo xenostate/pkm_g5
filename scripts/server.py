@@ -33,7 +33,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -42,10 +42,9 @@ from pydantic import BaseModel
 from scripts.indexer import get_model, get_chroma_collection, ingest_pdf, ingest_url, ingest_text, delete_document, list_documents, get_document_chunks
 from scripts.retriever import retrieve
 from scripts.rag import (
-    load_kb, save_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
-    answer_question, summarize_document, find_connections, refresh_all_connections,
+    load_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
+    answer_question, summarize_document, extract_concepts, refresh_missing_concepts, refresh_all_connections,
 )
-from scripts.podcast import generate_podcast_script, synthesize_speech, PODCAST_DIR
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
@@ -66,6 +65,13 @@ _session_lock = threading.Lock()
 SESSION_HISTORY_LIMIT = 5
 
 
+def _sync_knowledge_map():
+    """Keep persisted knowledge-map data up to date after document changes."""
+    global kb
+    refresh_missing_concepts(kb, get_document_chunks)
+    kb = refresh_all_connections(kb, embed_model, describe_with_llm=False)
+
+
 # ── Lifespan ────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
@@ -84,6 +90,10 @@ async def lifespan(app: FastAPI):
     log.info("Loading knowledge base...")
     kb = load_kb()
     log.info(f"Knowledge base loaded: {kb['stats']['total_documents']} documents, {kb['stats']['total_questions']} Q&A entries.")
+    if kb["documents"]:
+        log.info("Syncing persisted knowledge map data...")
+        await asyncio.to_thread(_sync_knowledge_map)
+        log.info("Knowledge map sync complete.")
 
     yield
 
@@ -121,15 +131,6 @@ class UrlRequest(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 10
-
-
-class PodcastScriptRequest(BaseModel):
-    doc_ids: list[str]
-    topic: str = ""
-
-
-class PodcastSynthesizeRequest(BaseModel):
-    script: str
 
 
 # ── Routes: Static / Health ─────────────────────────────────────────────────
@@ -174,6 +175,12 @@ async def upload_pdf(file: UploadFile = File(...)):
         log.warning(f"Summarization failed: {e}")
         summary = ""
 
+    try:
+        concepts = await asyncio.to_thread(extract_concepts, result["full_text"])
+    except Exception as e:
+        log.warning(f"Concept extraction failed: {e}")
+        concepts = []
+
     add_document_to_kb(kb, {
         "doc_id": result["doc_id"],
         "title": result["title"],
@@ -181,7 +188,8 @@ async def upload_pdf(file: UploadFile = File(...)):
         "source": file.filename,
         "chunk_count": result["chunk_count"],
         "text_length": result["text_length"],
-    }, summary=summary)
+    }, summary=summary, concepts=concepts)
+    await asyncio.to_thread(_sync_knowledge_map)
 
     log.info(f"Ingested PDF: {file.filename} -> {result['chunk_count']} chunks")
 
@@ -190,6 +198,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         "title": result["title"],
         "chunk_count": result["chunk_count"],
         "summary": summary,
+        "concepts": concepts,
     }
 
 
@@ -207,6 +216,12 @@ async def add_url(req: UrlRequest):
         log.warning(f"Summarization failed: {e}")
         summary = ""
 
+    try:
+        concepts = await asyncio.to_thread(extract_concepts, result["full_text"])
+    except Exception as e:
+        log.warning(f"Concept extraction failed: {e}")
+        concepts = []
+
     add_document_to_kb(kb, {
         "doc_id": result["doc_id"],
         "title": result["title"],
@@ -214,7 +229,8 @@ async def add_url(req: UrlRequest):
         "source": req.url,
         "chunk_count": result["chunk_count"],
         "text_length": result["text_length"],
-    }, summary=summary)
+    }, summary=summary, concepts=concepts)
+    await asyncio.to_thread(_sync_knowledge_map)
 
     log.info(f"Ingested URL: {req.url} -> {result['chunk_count']} chunks")
 
@@ -223,6 +239,7 @@ async def add_url(req: UrlRequest):
         "title": result["title"],
         "chunk_count": result["chunk_count"],
         "summary": summary,
+        "concepts": concepts,
     }
 
 
@@ -240,6 +257,12 @@ async def add_text(req: TextRequest):
         log.warning(f"Summarization failed: {e}")
         summary = ""
 
+    try:
+        concepts = await asyncio.to_thread(extract_concepts, result["full_text"])
+    except Exception as e:
+        log.warning(f"Concept extraction failed: {e}")
+        concepts = []
+
     add_document_to_kb(kb, {
         "doc_id": result["doc_id"],
         "title": result["title"],
@@ -247,7 +270,8 @@ async def add_text(req: TextRequest):
         "source": None,
         "chunk_count": result["chunk_count"],
         "text_length": result["text_length"],
-    }, summary=summary)
+    }, summary=summary, concepts=concepts)
+    await asyncio.to_thread(_sync_knowledge_map)
 
     log.info(f"Ingested text: '{req.title}' -> {result['chunk_count']} chunks")
 
@@ -256,6 +280,7 @@ async def add_text(req: TextRequest):
         "title": result["title"],
         "chunk_count": result["chunk_count"],
         "summary": summary,
+        "concepts": concepts,
     }
 
 
@@ -294,6 +319,7 @@ async def remove_document(doc_id: str):
 
     await asyncio.to_thread(delete_document, doc_id)
     remove_document_from_kb(kb, doc_id)
+    await asyncio.to_thread(_sync_knowledge_map)
 
     log.info(f"Deleted document: {doc_id}")
     return {"status": "deleted", "doc_id": doc_id}
@@ -310,7 +336,7 @@ async def chat(req: ChatRequest):
         history = _session_history.get(req.session_id, [])
 
     result = await asyncio.to_thread(
-        answer_question, req.message, history, embed_model
+        answer_question, req.message, history, embed_model, kb
     )
 
     # Update session history
@@ -365,8 +391,9 @@ async def get_connections():
 @app.post("/api/connections/refresh")
 async def refresh_connections():
     global kb
-    kb = await asyncio.to_thread(refresh_all_connections, kb, embed_model)
-    return {"status": "refreshed", "document_count": len(kb["documents"])}
+    concept_updates = await asyncio.to_thread(refresh_missing_concepts, kb, get_document_chunks)
+    kb = await asyncio.to_thread(refresh_all_connections, kb, embed_model, True)
+    return {"status": "refreshed", "document_count": len(kb["documents"]), "concepts_backfilled": concept_updates}
 
 
 # ── Routes: Knowledge Base / Stats ───────────────────────────────────────────
@@ -383,42 +410,7 @@ async def get_stats():
     return kb.get("stats", {})
 
 
-# ── Routes: Podcast ──────────────────────────────────────────────────────────
-
-@app.post("/api/podcast/generate")
-async def podcast_generate(req: PodcastScriptRequest):
-    global kb
-    if not req.doc_ids:
-        return JSONResponse({"error": "Select at least one document."}, status_code=400)
-
-    try:
-        result = await asyncio.to_thread(generate_podcast_script, req.doc_ids, kb, req.topic)
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-
-    log.info(f"Podcast script generated: {result['word_count']} words from {result['doc_count']} docs")
-    return result
-
-
-@app.post("/api/podcast/synthesize")
-async def podcast_synthesize(req: PodcastSynthesizeRequest):
-    if not req.script.strip():
-        return JSONResponse({"error": "Script is empty."}, status_code=400)
-
-    try:
-        filename = await asyncio.to_thread(synthesize_speech, req.script)
-    except ImportError as e:
-        return JSONResponse({"error": str(e)}, status_code=503)
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-
-    log.info(f"Podcast audio synthesized: {filename}")
-    return {"filename": filename, "url": f"/podcasts/{filename}"}
-
-
 # ── Mount static files (must be last) ───────────────────────────────────────
 
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
-PODCAST_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/podcasts", StaticFiles(directory=PODCAST_DIR), name="podcasts")
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")

@@ -19,7 +19,7 @@ THRESHOLD_MEDIUM = float(os.environ.get("THRESHOLD_MEDIUM", "0.5"))
 # ── Retrieval ──────────────────────────────────────────────────────────────
 
 
-def retrieve(query: str, top_k: int = 5, model=None) -> dict:
+def retrieve(query: str, top_k: int = 10, model=None) -> dict:
     """
     Search ChromaDB for chunks matching the query.
 
