@@ -1,39 +1,327 @@
 {
   "documents": {
-    "56543b75b23a": {
-      "id": "56543b75b23a",
-      "title": "2.Systems Engineering(new)",
-      "source_type": "pdf",
-      "source": "2.Systems Engineering(new).pdf",
-      "added_at": "2026-03-20T03:51:27.004455+00:00",
-      "chunk_count": 6,
-      "text_length": 23193,
-      "summary": "The document titled \"Systems Engineering\" by Prof. Eunseok Lee provides a comprehensive overview of systems engineering, emphasizing the importance of understanding sociotechnical systems, emergent properties, and the various stages involved in the systems engineering process. The primary objectives include distinguishing between technical and sociotechnical systems, recognizing emergent properties such as reliability and security, and understanding the interconnectedness of software dependability with broader systems issues.\n\nThe document outlines key concepts such as complex systems, which are defined as purposeful collections of interrelated components working together towards a common goal. It differentiates between technical computer-based systems, which typically exclude human operators, and sociotechnical systems that incorporate human and organizational factors. The sociotechnical systems stack is introduced, illustrating the layers of equipment, operating systems, communication, application systems, business processes, organizations, and societal influences, highlighting the interdependencies and interactions among these layers.\n\nThe stages of systems engineering are detailed, including conceptual design, procurement, development, operation, and evolution. Conceptual design focuses on feasibility and high-level system descriptions, while procurement involves defining requirements and selecting suppliers. Development encompasses requirements engineering, architectural design, and system integration, emphasizing the need for interdisciplinary collaboration. The document also addresses the significance of human factors in system operation, the inevitability of human error, and the necessity for systems to include safeguards against such errors. Finally, it discusses system evolution, the challenges of maintaining legacy systems, and the factors influencing system lifetimes, such as investment costs and risks associated with change.\n\nIn conclusion, the document underscores the complexity of systems engineering and the critical role of human and organizational factors in the design and operation of sociotechnical systems. It advocates for a holistic approach to systems engineering that considers emergent properties and the interplay between technical components and human operators, ultimately aiming for systems that effectively meet organizational goals while adapting to evolving requirements.",
-      "connections": [
-        {
-          "doc_id": "4d7dbd2530c0",
-          "title": "1.Introduction to SE(new)",
-          "similarity": 0.9596,
-          "description": "both documents by Prof. Eunseok Lee focus on engineering disciplines, with the first addressing systems engineering and its sociotechnical aspects, while the second emphasizes software engineering and its methodologies, underscoring the interconnectedness of both fields in developing reliable systems."
-        }
-      ]
-    },
-    "4d7dbd2530c0": {
-      "id": "4d7dbd2530c0",
+    "ce2f99dc7c9d": {
+      "id": "ce2f99dc7c9d",
       "title": "1.Introduction to SE(new)",
       "source_type": "pdf",
       "source": "1.Introduction to SE(new).pdf",
-      "added_at": "2026-03-20T03:52:16.916386+00:00",
+      "added_at": "2026-05-06T11:58:12.288636+00:00",
       "chunk_count": 8,
       "text_length": 26906,
-      "summary": "The document titled \"Introduction to SE(new)\" by Prof. Eunseok Lee from Sungkyunkwan University provides a comprehensive overview of software engineering (SE), its significance, methodologies, ethical considerations, and various application types. The introduction emphasizes the critical role of software in modern economies, highlighting that software engineering is essential for developing reliable and efficient software systems. The document outlines the objectives of the course, which include understanding the importance of SE, recognizing different techniques for various software types, and addressing ethical issues relevant to software engineers.\n\nKey concepts discussed include the distinction between generic and customized software products, the importance of software costs, and the various software engineering processes such as specification, development, validation, and evolution. The document also addresses the diversity of software systems, noting that different applications—ranging from stand-alone applications to embedded control systems—require tailored engineering approaches. The significance of software engineering is underscored by its impact on the economy and the necessity for systematic methodologies to manage software development effectively.\n\nEthical considerations are a major focus, with the document referencing the ACM/IEEE Code of Ethics, which outlines the responsibilities of software engineers to act in the public interest, maintain confidentiality, and ensure the integrity of their work. The document also presents case studies, including an insulin pump control system, a mental health care patient management system, and a wilderness weather station, to illustrate practical applications of software engineering principles. These case studies highlight the importance of safety, reliability, and ethical considerations in the development of software systems that have significant impacts on health and safety.\n\nIn conclusion, the document emphasizes that software engineering is not merely a technical discipline but also encompasses ethical responsibilities and professional conduct. It advocates for a comprehensive understanding of software engineering principles, methodologies, and ethical standards to prepare future software engineers for the challenges they will face in a rapidly evolving technological landscape. The integration of ethical considerations into software engineering practices is presented as essential for fostering trust and accountability in the profession.",
+      "summary": "The document titled \"Introduction to SE(new)\" by Prof. Eunseok Lee provides a comprehensive overview of software engineering (SE), its significance, methodologies, ethical considerations, and various application types. The introduction emphasizes the critical role of software in modern economies, highlighting that software engineering is essential for developing reliable and cost-effective software systems. The document outlines the objectives of the course, which include understanding the importance of SE, recognizing different techniques for various software types, and addressing ethical issues relevant to software engineers.\n\nKey concepts discussed include the distinction between generic and customized software products, the importance of software costs, and the various software engineering processes such as specification, development, validation, and evolution. The document also introduces the fundamental attributes of good software, which include maintainability, dependability, efficiency, and acceptability. It emphasizes that software engineering is not just about technical skills but also involves project management and adherence to ethical standards, as outlined in the ACM/IEEE Code of Ethics.\n\nThe document further explores the diversity of software engineering, noting that different types of applications—such as stand-alone systems, embedded control systems, and web-based applications—require tailored methodologies and tools. It also discusses the impact of the web on software engineering practices, emphasizing the importance of software reuse and incremental development in web-based systems. The latter sections of the document present case studies, including an insulin pump control system, a mental health care patient management system, and a wilderness weather station, illustrating practical applications of software engineering principles in real-world scenarios. \n\nIn conclusion, the document underscores the necessity for software engineers to uphold ethical standards and professional responsibilities while adapting to the evolving landscape of software development. It highlights the importance of continuous learning and ethical practice in ensuring that software engineering remains a respected and beneficial profession. The case studies serve to contextualize theoretical concepts, demonstrating their application in critical systems that impact health and safety.",
       "connections": [
         {
-          "doc_id": "56543b75b23a",
+          "doc_id": "dd5e2bdba023",
+          "title": "5.Requirements Engineering(new)",
+          "similarity": 0.9616,
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9616)"
+        },
+        {
+          "doc_id": "2158b2c7ee31",
           "title": "2.Systems Engineering(new)",
           "similarity": 0.9596,
-          "description": "Both documents, authored by Prof. Eunseok Lee, provide comprehensive overviews of their respective fields—software engineering and systems engineering—highlighting their significance, methodologies, and the importance of reliability and efficiency in modern technological systems."
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9596)"
+        },
+        {
+          "doc_id": "f04338c13e7c",
+          "title": "3.Software Processes(new)",
+          "similarity": 0.9568,
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9568)"
+        },
+        {
+          "doc_id": "b3a3c3038349",
+          "title": "6.System Modeling(new)",
+          "similarity": 0.9466,
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9466)"
+        },
+        {
+          "doc_id": "1d4d07c2ff07",
+          "title": "4.Agile Software Development(new)",
+          "similarity": 0.9433,
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9433)"
         }
+      ],
+      "concepts": [
+        "Importance of software engineering",
+        "Different software systems require different SE techniques",
+        "Ethical and professional issues in software engineering",
+        "Economic dependence of developed nations on software",
+        "Significant software costs compared to hardware costs",
+        "Maintenance costs often exceed development costs",
+        "Systematic methodologies for software development",
+        "Theories, methods, and tools for professional software development",
+        "Case studies as examples in software engineering",
+        "Models of software development: Waterfall, Iterative, Component-based"
+      ]
+    },
+    "2158b2c7ee31": {
+      "id": "2158b2c7ee31",
+      "title": "2.Systems Engineering(new)",
+      "source_type": "pdf",
+      "source": "2.Systems Engineering(new).pdf",
+      "added_at": "2026-05-06T11:58:19.865051+00:00",
+      "chunk_count": 6,
+      "text_length": 23193,
+      "summary": "The document titled \"Systems Engineering\" by Prof. Eunseok Lee outlines the principles and processes involved in systems engineering, emphasizing the importance of understanding sociotechnical systems, emergent properties, and the stages of system development. The primary objectives include distinguishing between technical and sociotechnical systems, recognizing emergent properties like reliability and security, and understanding the comprehensive systems engineering process from conceptual design to operation and evolution.\n\nThe document begins by defining a system as a purposeful collection of interrelated components working towards a common goal. It highlights the distinction between technical computer-based systems, which typically exclude human operators, and sociotechnical systems, which integrate human, organizational, and technical elements. The sociotechnical systems stack is presented, illustrating the layers from hardware and software to organizational and societal influences, emphasizing the interdependencies and interactions among these layers.\n\nKey concepts discussed include emergent properties, which arise from the relationships between system components and cannot be assessed in isolation. The document also addresses the non-deterministic nature of sociotechnical systems, where human behavior introduces variability in system outputs. The stages of systems engineering are detailed, including conceptual design, procurement, development, operation, and evolution. Each stage is critical, with procurement decisions significantly impacting later phases, and the need for interdisciplinary collaboration is emphasized to mitigate communication barriers and misunderstandings.\n\nThe document concludes by stressing the importance of human factors in system operation and the inevitability of human error. It advocates for designing systems with multiple barriers to detect and mitigate errors before they lead to failures. Additionally, it discusses the challenges of system evolution, particularly in maintaining legacy systems and adapting to changing requirements. Overall, the document serves as a comprehensive guide to understanding and implementing effective systems engineering practices.",
+      "connections": [
+        {
+          "doc_id": "ce2f99dc7c9d",
+          "title": "1.Introduction to SE(new)",
+          "similarity": 0.9596,
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.9596)"
+        },
+        {
+          "doc_id": "dd5e2bdba023",
+          "title": "5.Requirements Engineering(new)",
+          "similarity": 0.9594,
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9594)"
+        },
+        {
+          "doc_id": "f04338c13e7c",
+          "title": "3.Software Processes(new)",
+          "similarity": 0.9551,
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9551)"
+        },
+        {
+          "doc_id": "b3a3c3038349",
+          "title": "6.System Modeling(new)",
+          "similarity": 0.9492,
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9492)"
+        },
+        {
+          "doc_id": "1d4d07c2ff07",
+          "title": "4.Agile Software Development(new)",
+          "similarity": 0.9326,
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9326)"
+        }
+      ],
+      "concepts": [
+        "Sociotechnical system",
+        "Emergent system properties",
+        "Systems engineering process",
+        "Complex systems",
+        "Conceptual design",
+        "Systems procurement",
+        "System development",
+        "System operation and evolution",
+        "Software dependability and security",
+        "Inter-related components"
+      ]
+    },
+    "f04338c13e7c": {
+      "id": "f04338c13e7c",
+      "title": "3.Software Processes(new)",
+      "source_type": "pdf",
+      "source": "3.Software Processes(new).pdf",
+      "added_at": "2026-05-06T11:58:26.650944+00:00",
+      "chunk_count": 8,
+      "text_length": 25808,
+      "summary": "The document titled \"Software Processes\" by Eunseok Lee provides a comprehensive overview of software development processes, emphasizing the structured activities involved in producing software systems. The primary objectives include introducing software processes, understanding various process models, and recognizing the importance of adapting processes to accommodate changes in requirements and design. The document outlines key concepts such as software specification, design, implementation, validation, and evolution, which are fundamental to software engineering.\n\nThe document categorizes software processes into three generic models: the waterfall model, incremental development, and reuse-oriented software engineering. The waterfall model is characterized by its sequential phases, which can be inflexible in accommodating changes. In contrast, incremental development allows for interleaved activities, facilitating customer feedback and quicker delivery of functional software. Reuse-oriented software engineering focuses on integrating existing components, which can reduce costs and risks but may lead to compromises in meeting user needs. Each model has its advantages and challenges, and the document highlights that most large systems utilize a combination of these approaches.\n\nAdditionally, the document discusses the significance of coping with change in software projects, emphasizing strategies such as change avoidance and change tolerance. Prototyping is presented as a valuable technique for validating requirements and design decisions early in the development process. The document also addresses software evolution, which is essential for adapting to new business requirements and technologies. Finally, it touches on software process improvement, advocating for the enhancement of existing processes to boost quality, reduce costs, and accelerate development timelines. Various improvement approaches, including process maturity and agile methodologies, are explored, underscoring the need for organizations to adapt their processes to remain competitive in a rapidly changing environment.",
+      "connections": [
+        {
+          "doc_id": "1d4d07c2ff07",
+          "title": "4.Agile Software Development(new)",
+          "similarity": 0.9593,
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9593)"
+        },
+        {
+          "doc_id": "ce2f99dc7c9d",
+          "title": "1.Introduction to SE(new)",
+          "similarity": 0.9568,
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.9568)"
+        },
+        {
+          "doc_id": "dd5e2bdba023",
+          "title": "5.Requirements Engineering(new)",
+          "similarity": 0.9563,
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9563)"
+        },
+        {
+          "doc_id": "2158b2c7ee31",
+          "title": "2.Systems Engineering(new)",
+          "similarity": 0.9551,
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9551)"
+        },
+        {
+          "doc_id": "b3a3c3038349",
+          "title": "6.System Modeling(new)",
+          "similarity": 0.9478,
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9478)"
+        }
+      ],
+      "concepts": [
+        "Software process",
+        "Software process models",
+        "Software requirements engineering",
+        "Software development",
+        "Software testing",
+        "Software evolution",
+        "Process activities",
+        "Coping with change",
+        "Process improvement",
+        "Roles and responsibilities in software processes"
+      ]
+    },
+    "1d4d07c2ff07": {
+      "id": "1d4d07c2ff07",
+      "title": "4.Agile Software Development(new)",
+      "source_type": "pdf",
+      "source": "4.Agile Software Development(new).pdf",
+      "added_at": "2026-05-06T11:58:41.498874+00:00",
+      "chunk_count": 8,
+      "text_length": 27914,
+      "summary": "The document titled \"Agile Software Development\" by Eunseok Lee provides a comprehensive overview of agile methodologies in software development, emphasizing their principles, practices, and the challenges associated with scaling these methods for larger projects. The primary objectives include understanding the rationale behind agile methods, the Agile Manifesto, and key practices such as user stories, refactoring, pair programming, and test-first development. The document also contrasts agile approaches with traditional plan-driven development and introduces the Scrum framework for agile project management.\n\nAgile methods emerged as a response to the dissatisfaction with the rigid overheads of traditional software design methods prevalent in the 1980s and 1990s. These methods prioritize the coder and advocate for an iterative approach that allows for rapid development and delivery of software, accommodating changing business needs. The Agile Manifesto highlights the importance of individuals and interactions, working software, customer collaboration, and responsiveness to change over more traditional processes and documentation. Key principles of agile methods include customer involvement, incremental delivery, embracing change, and maintaining simplicity in both software and development processes.\n\nThe document discusses Extreme Programming (XP) as a prominent agile methodology characterized by frequent releases, customer engagement, and practices such as test-first development and pair programming. It emphasizes the importance of continuous integration and refactoring to maintain code quality and adaptability. Additionally, the challenges of maintaining customer interest, managing multiple stakeholders, and ensuring simplicity in agile processes are acknowledged. The document also addresses the applicability of agile methods in various contexts, particularly in small to medium-sized projects, while noting the difficulties in scaling these methods for larger systems that require more structured approaches.\n\nIn terms of project management, the Scrum framework is presented as a structured approach to managing agile projects, involving iterative development cycles (sprints) and roles such as the Scrum Master and Product Owner. The document highlights the benefits of Scrum, including improved team communication, visibility of progress, and the establishment of trust between customers and developers. Finally, it discusses the complexities of scaling agile methods for large systems, which often involve multiple teams and external regulations, and emphasizes the need for flexible planning and effective communication to maintain agile principles in larger organizational contexts.",
+      "connections": [
+        {
+          "doc_id": "f04338c13e7c",
+          "title": "3.Software Processes(new)",
+          "similarity": 0.9593,
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9593)"
+        },
+        {
+          "doc_id": "ce2f99dc7c9d",
+          "title": "1.Introduction to SE(new)",
+          "similarity": 0.9433,
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.9433)"
+        },
+        {
+          "doc_id": "dd5e2bdba023",
+          "title": "5.Requirements Engineering(new)",
+          "similarity": 0.9341,
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9341)"
+        },
+        {
+          "doc_id": "2158b2c7ee31",
+          "title": "2.Systems Engineering(new)",
+          "similarity": 0.9326,
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9326)"
+        },
+        {
+          "doc_id": "b3a3c3038349",
+          "title": "6.System Modeling(new)",
+          "similarity": 0.9297,
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9297)"
+        }
+      ],
+      "concepts": [
+        "Agile software development",
+        "Agile manifesto",
+        "User stories",
+        "Refactoring",
+        "Pair programming",
+        "Test-first development",
+        "Scrum approach",
+        "Scaling agile methods",
+        "Rapid software development",
+        "Iterative approach"
+      ]
+    },
+    "dd5e2bdba023": {
+      "id": "dd5e2bdba023",
+      "title": "5.Requirements Engineering(new)",
+      "source_type": "pdf",
+      "source": "5.Requirements Engineering(new).pdf",
+      "added_at": "2026-05-06T11:58:48.168439+00:00",
+      "chunk_count": 10,
+      "text_length": 36382,
+      "summary": "The document titled \"Requirements Engineering\" by Prof. Eunseok Lee outlines the fundamental concepts, processes, and methodologies involved in requirements engineering, which is crucial for developing software systems that meet user needs and operational constraints. The objectives of the document include understanding user and system requirements, differentiating between functional and non-functional requirements, and recognizing the importance of requirements management. The document emphasizes that requirements engineering is an iterative process involving elicitation, analysis, validation, and management, which are interconnected activities essential for successful software development.\n\nKey concepts discussed include the distinction between user requirements, which are expressed in natural language for customers, and system requirements, which are more detailed and structured, often forming part of a contractual agreement. The document also categorizes requirements into functional requirements, which specify what the system should do, and non-functional requirements, which impose constraints on how the system operates, such as performance and reliability. The importance of clarity, completeness, and consistency in requirements is highlighted, as imprecise or ambiguous requirements can lead to significant issues during development.\n\nThe document further explores various techniques for requirements elicitation, such as interviews, scenarios, and ethnographic studies, which involve engaging with stakeholders to gather insights about their needs and expectations. It also addresses the challenges faced during requirements gathering, including conflicting stakeholder interests and the evolving nature of requirements as projects progress. Validation techniques are discussed to ensure that requirements accurately reflect user needs and are feasible within the given constraints. Finally, the document underscores the necessity of requirements management to adapt to changes in business and technical environments, ensuring that the software system remains aligned with user expectations and organizational goals.",
+      "connections": [
+        {
+          "doc_id": "ce2f99dc7c9d",
+          "title": "1.Introduction to SE(new)",
+          "similarity": 0.9616,
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.9616)"
+        },
+        {
+          "doc_id": "2158b2c7ee31",
+          "title": "2.Systems Engineering(new)",
+          "similarity": 0.9594,
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9594)"
+        },
+        {
+          "doc_id": "f04338c13e7c",
+          "title": "3.Software Processes(new)",
+          "similarity": 0.9563,
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9563)"
+        },
+        {
+          "doc_id": "b3a3c3038349",
+          "title": "6.System Modeling(new)",
+          "similarity": 0.9446,
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9446)"
+        },
+        {
+          "doc_id": "1d4d07c2ff07",
+          "title": "4.Agile Software Development(new)",
+          "similarity": 0.9341,
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9341)"
+        }
+      ],
+      "concepts": [
+        "User and system requirements",
+        "Functional and non-functional requirements",
+        "Software requirements document",
+        "Requirements engineering activities",
+        "Requirements elicitation and analysis",
+        "Requirements validation",
+        "Requirements management",
+        "High-level abstract statements",
+        "Detailed mathematical functional specifications",
+        "Operational constraints"
+      ]
+    },
+    "b3a3c3038349": {
+      "id": "b3a3c3038349",
+      "title": "6.System Modeling(new)",
+      "source_type": "pdf",
+      "source": "6.System Modeling(new).pdf",
+      "added_at": "2026-05-06T11:58:56.001585+00:00",
+      "chunk_count": 6,
+      "text_length": 18154,
+      "summary": "The document titled \"System Modeling\" by Eunseok Lee outlines the fundamental concepts and methodologies involved in modeling software systems. The primary objectives include understanding the use of graphical models for representing software systems, recognizing the necessity of different model types, and introducing various diagram types in the Unified Modeling Language (UML). The document emphasizes the importance of model-driven engineering, where systems can be automatically generated from structural and behavioral models.\n\nThe content is structured around several key topics: context models, interaction models, structural models, behavioral models, and model-driven engineering. Context models illustrate the operational environment of a system, while interaction models focus on user and system interactions. Structural models depict the organization of a system, and behavioral models represent the dynamic behavior of a system in response to stimuli. Each model type serves a distinct purpose in the software development process, aiding in requirements engineering, design discussions, and documentation.\n\nThe document also delves into specific UML diagram types, such as activity diagrams, use case diagrams, sequence diagrams, and class diagrams. These diagrams facilitate discussions about existing or proposed systems, document system functionalities, and provide detailed descriptions for system implementation. Additionally, the document discusses the concept of generalization in modeling, which allows for efficient management of changes across related classes in object-oriented programming.\n\nFinally, the document addresses model-driven engineering (MDE) as a methodology that prioritizes models over traditional programming outputs. It outlines the advantages and challenges of MDE, including its potential to raise abstraction levels in software engineering and the complexities involved in developing platform-specific models. The discussion concludes with the notion of Executable UML (xUML), which aims to automate the transformation of models into executable code, thereby streamlining the software development process. Overall, the document provides a comprehensive overview of system modeling principles and practices essential for effective software engineering.",
+      "connections": [
+        {
+          "doc_id": "2158b2c7ee31",
+          "title": "2.Systems Engineering(new)",
+          "similarity": 0.9492,
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9492)"
+        },
+        {
+          "doc_id": "f04338c13e7c",
+          "title": "3.Software Processes(new)",
+          "similarity": 0.9478,
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9478)"
+        },
+        {
+          "doc_id": "ce2f99dc7c9d",
+          "title": "1.Introduction to SE(new)",
+          "similarity": 0.9466,
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.9466)"
+        },
+        {
+          "doc_id": "dd5e2bdba023",
+          "title": "5.Requirements Engineering(new)",
+          "similarity": 0.9446,
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9446)"
+        },
+        {
+          "doc_id": "1d4d07c2ff07",
+          "title": "4.Agile Software Development(new)",
+          "similarity": 0.9297,
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9297)"
+        }
+      ],
+      "concepts": [
+        "Graphical models for software systems representation",
+        "Different types of models for system modeling perspectives",
+        "Unified Modeling Language (UML) diagram types",
+        "Model-driven engineering concepts",
+        "Context, interaction, structure, and behavior models",
+        "Abstract models for system understanding",
+        "Communication tools for analysts and customers",
+        "Existing and planned system models in requirements engineering",
+        "Clarification of existing system functionality",
+        "Discussion of design proposals with stakeholders"
       ]
     }
   },
@@ -169,11 +457,235 @@
         }
       ],
       "timestamp": "2026-03-28T09:45:35.670685+00:00"
+    },
+    {
+      "id": "q_68bb2da5",
+      "question": "What can you say about lecture number 4",
+      "answer": "I don't have enough information from your documents to answer this.",
+      "sources": [
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.775
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.7682
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.7674
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7674
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7664
+        }
+      ],
+      "timestamp": "2026-04-11T11:02:19.221955+00:00"
+    },
+    {
+      "id": "q_344c181c",
+      "question": "What's agile software development? answer only from data you have from uploaded pdfs",
+      "answer": "",
+      "sources": [
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8634
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8634
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8624
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8615
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8599
+        }
+      ],
+      "timestamp": "2026-04-11T11:02:55.633668+00:00"
+    },
+    {
+      "id": "q_be9bafc4",
+      "question": "What's agile software development?",
+      "answer": "",
+      "sources": [
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8551
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.853
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8527
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8507
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8501
+        }
+      ],
+      "timestamp": "2026-04-11T11:03:24.642799+00:00"
+    },
+    {
+      "id": "q_d03b34e5",
+      "question": "What's agile software development? answer only from data you have from uploaded pdfs",
+      "answer": "",
+      "sources": [
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8634
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8634
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8624
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8615
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8599
+        }
+      ],
+      "timestamp": "2026-04-11T11:11:55.408233+00:00"
+    },
+    {
+      "id": "q_8c4eea5e",
+      "question": "What's agile software development? answer only from data you have from uploaded pdfs",
+      "answer": "Agile software development is an iterative approach to software development that focuses on rapid development, frequent releases of software, and reducing process overheads. It emphasizes customer involvement throughout the development process and aims to deliver working software quickly to adapt to changing requirements. Agile methods prioritize individuals and interactions over processes and tools, working software over comprehensive documentation, customer collaboration over contract negotiation, and responding to change over following a plan. Key practices include user stories, refactoring, pair programming, and test-first development. \n\nThis information is derived from documents [1], [2], and [5].",
+      "sources": [
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8634
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8634
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8624
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8615
+        },
+        {
+          "title": "4.Agile Software Development(new)",
+          "doc_id": "66a14ba5f5be",
+          "score": 0.8599
+        }
+      ],
+      "timestamp": "2026-04-11T11:12:48.312065+00:00"
+    },
+    {
+      "id": "q_1f765277",
+      "question": "Explain waterfall model",
+      "answer": "The waterfall model is a software development process characterized by its inflexible partitioning of the project into distinct stages. It is primarily suitable for projects where the requirements are well-understood and changes are expected to be limited during the design process. This model is often used for large systems engineering projects, where its plan-driven nature helps coordinate work across multiple sites. However, it has notable problems, such as difficulty in responding to changing customer requirements and the fact that few business systems have stable requirements (Source [1]).",
+      "sources": [
+        {
+          "title": "3.Software Processes(new)",
+          "doc_id": "1f7e68d33fa3",
+          "score": 0.8319
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7991
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7895
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "4d7dbd2530c0",
+          "score": 0.7882
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.7868
+        },
+        {
+          "title": "3.Software Processes(new)",
+          "doc_id": "1f7e68d33fa3",
+          "score": 0.785
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "56543b75b23a",
+          "score": 0.7832
+        },
+        {
+          "title": "3.Software Processes(new)",
+          "doc_id": "1f7e68d33fa3",
+          "score": 0.7802
+        },
+        {
+          "title": "3.Software Processes(new)",
+          "doc_id": "1f7e68d33fa3",
+          "score": 0.7784
+        },
+        {
+          "title": "3.Software Processes(new)",
+          "doc_id": "1f7e68d33fa3",
+          "score": 0.7738
+        }
+      ],
+      "timestamp": "2026-05-04T08:19:56.132630+00:00"
     }
   ],
   "stats": {
-    "total_documents": 2,
-    "total_chunks": 14,
-    "total_questions": 4
-  }
+    "total_documents": 6,
+    "total_chunks": 46,
+    "total_questions": 10
+  },
+  "links": []
 }
