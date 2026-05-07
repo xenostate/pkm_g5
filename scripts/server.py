@@ -43,7 +43,9 @@ from scripts.indexer import get_model, get_chroma_collection, ingest_pdf, ingest
 from scripts.retriever import retrieve
 from scripts.rag import (
     load_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
-    answer_question, summarize_document, extract_concepts, refresh_missing_concepts, refresh_all_connections,
+    answer_question, summarize_document, extract_concepts, generate_document_questions,
+    get_questions_by_document, pick_next_question, record_question_result,
+    refresh_missing_concepts, refresh_all_connections,
 )
 
 # ── Config ──────────────────────────────────────────────────────────────────
@@ -131,6 +133,22 @@ class UrlRequest(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 10
+
+
+class QuestionGenerateRequest(BaseModel):
+    doc_id: str
+
+
+class QuestionAnswerRequest(BaseModel):
+    session_id: str = "default"
+    doc_id: str
+    question_id: str
+    selected_index: int
+
+
+class QuestionNextRequest(BaseModel):
+    session_id: str = "default"
+    doc_id: str | None = None
 
 
 # ── Routes: Static / Health ─────────────────────────────────────────────────
@@ -359,6 +377,48 @@ async def chat(req: ChatRequest):
 async def chat_history():
     global kb
     return {"history": kb.get("qa_history", [])}
+
+
+@app.get("/api/questions")
+async def get_questions():
+    global kb
+    return {"documents": get_questions_by_document(kb)}
+
+
+@app.post("/api/questions/generate")
+async def generate_questions(req: QuestionGenerateRequest):
+    global kb
+    if req.doc_id not in kb["documents"]:
+        return JSONResponse({"error": "Document not found."}, status_code=404)
+
+    questions = await asyncio.to_thread(generate_document_questions, req.doc_id, kb, get_document_chunks)
+    return {"doc_id": req.doc_id, "questions": questions}
+
+
+@app.post("/api/questions/answer")
+async def answer_question_card(req: QuestionAnswerRequest):
+    global kb
+    try:
+        result = await asyncio.to_thread(
+            record_question_result,
+            kb,
+            req.session_id,
+            req.doc_id,
+            req.question_id,
+            req.selected_index,
+        )
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=404)
+
+    next_question = await asyncio.to_thread(pick_next_question, kb, req.session_id, req.doc_id)
+    return {"result": result, "next_question": next_question}
+
+
+@app.post("/api/questions/next")
+async def next_question(req: QuestionNextRequest):
+    global kb
+    question = await asyncio.to_thread(pick_next_question, kb, req.session_id, req.doc_id)
+    return {"question": question}
 
 
 # ── Routes: Search ───────────────────────────────────────────────────────────

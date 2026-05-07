@@ -52,6 +52,92 @@
         "Theories, methods, and tools for professional software development",
         "Case studies as examples in software engineering",
         "Models of software development: Waterfall, Iterative, Component-based"
+      ],
+      "questions": [
+        {
+          "id": "ce2f99dc7c9d_q_1",
+          "prompt": "What is one of the primary objectives of the course outlined in the document?",
+          "options": [
+            "To understand the importance of software engineering",
+            "To learn programming languages",
+            "To develop hardware systems",
+            "To create video games"
+          ],
+          "answer_index": 0,
+          "explanation": "Understanding the importance of software engineering is a key objective as stated in the document.",
+          "topic": "Importance of software engineering",
+          "difficulty": "easy"
+        },
+        {
+          "id": "ce2f99dc7c9d_q_2",
+          "prompt": "Which software development model emphasizes a sequential design process?",
+          "options": [
+            "Iterative Model",
+            "Waterfall Model",
+            "Component-based Model",
+            "Agile Model"
+          ],
+          "answer_index": 1,
+          "explanation": "The Waterfall Model is known for its sequential design process, where each phase must be completed before the next begins.",
+          "topic": "Models of software development",
+          "difficulty": "medium"
+        },
+        {
+          "id": "ce2f99dc7c9d_q_3",
+          "prompt": "According to the document, what often exceeds development costs in software projects?",
+          "options": [
+            "Hardware costs",
+            "Maintenance costs",
+            "Training costs",
+            "Marketing costs"
+          ],
+          "answer_index": 1,
+          "explanation": "The document states that maintenance costs often exceed development costs, especially for long-lived systems.",
+          "topic": "Software costs",
+          "difficulty": "medium"
+        },
+        {
+          "id": "ce2f99dc7c9d_q_4",
+          "prompt": "What is a significant ethical consideration for software engineers mentioned in the document?",
+          "options": [
+            "Maximizing profit",
+            "Adhering to the ACM/IEEE Code of Ethics",
+            "Minimizing development time",
+            "Focusing solely on technical skills"
+          ],
+          "answer_index": 1,
+          "explanation": "The document emphasizes the importance of adhering to ethical standards, specifically the ACM/IEEE Code of Ethics.",
+          "topic": "Ethical and professional issues in software engineering",
+          "difficulty": "hard"
+        },
+        {
+          "id": "ce2f99dc7c9d_q_5",
+          "prompt": "What type of software product is specifically commissioned by a customer?",
+          "options": [
+            "Generic products",
+            "Customized products",
+            "Open-source products",
+            "Commercial off-the-shelf products"
+          ],
+          "answer_index": 1,
+          "explanation": "Customized products are developed to meet the specific needs of a customer, unlike generic products which are sold to any customer.",
+          "topic": "Software Products",
+          "difficulty": "easy"
+        },
+        {
+          "id": "ce2f99dc7c9d_q_6",
+          "prompt": "What does the document suggest about the relationship between software costs and hardware costs?",
+          "options": [
+            "Software costs are always lower than hardware costs",
+            "Software costs can dominate hardware costs",
+            "Hardware costs are more predictable than software costs",
+            "There is no relationship between software and hardware costs"
+          ],
+          "answer_index": 1,
+          "explanation": "The document states that software costs often dominate computer system costs, indicating a significant relationship.",
+          "topic": "Software costs",
+          "difficulty": "medium"
+        }
       ]
     },
     "2158b2c7ee31": {
@@ -106,7 +192,8 @@
         "System operation and evolution",
         "Software dependability and security",
         "Inter-related components"
-      ]
+      ],
+      "questions": []
     },
     "f04338c13e7c": {
       "id": "f04338c13e7c",
@@ -160,7 +247,8 @@
         "Coping with change",
         "Process improvement",
         "Roles and responsibilities in software processes"
-      ]
+      ],
+      "questions": []
     },
     "1d4d07c2ff07": {
       "id": "1d4d07c2ff07",
@@ -214,7 +302,8 @@
         "Scaling agile methods",
         "Rapid software development",
         "Iterative approach"
-      ]
+      ],
+      "questions": []
     },
     "dd5e2bdba023": {
       "id": "dd5e2bdba023",
@@ -268,7 +357,8 @@
         "High-level abstract statements",
         "Detailed mathematical functional specifications",
         "Operational constraints"
-      ]
+      ],
+      "questions": []
     },
     "b3a3c3038349": {
       "id": "b3a3c3038349",
@@ -322,7 +412,8 @@
         "Existing and planned system models in requirements engineering",
         "Clarification of existing system functionality",
         "Discussion of design proposals with stakeholders"
-      ]
+      ],
+      "questions": []
     }
   },
   "qa_history": [
@@ -687,5 +778,39 @@
     "total_chunks": 46,
     "total_questions": 10
   },
-  "links": []
+  "links": [],
+  "study_progress": {
+    "be1dfb9a-2b49-40b3-8729-92b62a3c86e1": {
+      "topics": {
+        "importance of software engineering": {
+          "topic": "Importance of software engineering",
+          "correct": 1,
+          "wrong": 0
+        },
+        "ethical and professional issues in software engineering": {
+          "topic": "Ethical and professional issues in software engineering",
+          "correct": 1,
+          "wrong": 0
+        }
+      },
+      "history": [
+        {
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "topic": "Importance of software engineering",
+          "selected_index": 0,
+          "correct": true,
+          "timestamp": "2026-05-07T05:40:13.054546+00:00"
+        },
+        {
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "topic": "Ethical and professional issues in software engineering",
+          "selected_index": 1,
+          "correct": true,
+          "timestamp": "2026-05-07T05:40:22.147700+00:00"
+        }
+      ]
+    }
+  }
 }

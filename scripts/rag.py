@@ -48,6 +48,7 @@ def _empty_kb() -> dict:
         "documents": {},
         "links": [],
         "qa_history": [],
+        "study_progress": {},
         "stats": {
             "total_documents": 0,
             "total_chunks": 0,
@@ -65,6 +66,7 @@ def load_kb() -> dict:
             kb.setdefault("documents", {})
             kb.setdefault("qa_history", [])
             kb.setdefault("links", [])
+            kb.setdefault("study_progress", {})
             kb.setdefault("stats", {
                 "total_documents": 0,
                 "total_chunks": 0,
@@ -73,6 +75,7 @@ def load_kb() -> dict:
             for doc in kb["documents"].values():
                 doc.setdefault("concepts", [])
                 doc.setdefault("connections", [])
+                doc.setdefault("questions", [])
             return kb
     return _empty_kb()
 
@@ -248,6 +251,7 @@ def add_document_to_kb(kb: dict, doc_info: dict, summary: str = "", concepts: li
             "summary": summary,
             "concepts": concepts or [],
             "connections": [],
+            "questions": [],
         }
         rebuild_concept_links(kb)
         _update_stats(kb)
@@ -572,3 +576,227 @@ def refresh_all_connections(kb: dict, model=None, describe_with_llm: bool = True
         kb["documents"][doc_id]["connections"] = connections
     save_kb(kb)
     return kb
+
+
+def _safe_json_value(raw_text: str):
+    """Best-effort JSON parse for arrays or objects returned by the model."""
+    try:
+        return json.loads(raw_text)
+    except json.JSONDecodeError:
+        pass
+
+    for opener, closer in (("[", "]"), ("{", "}")):
+        start = raw_text.find(opener)
+        end = raw_text.rfind(closer)
+        if start != -1 and end != -1 and end > start:
+            try:
+                return json.loads(raw_text[start:end + 1])
+            except json.JSONDecodeError:
+                continue
+    return None
+
+
+def generate_document_questions(doc_id: str, kb: dict, get_chunks_fn, model_name: str | None = None) -> list[dict]:
+    """Generate study questions for a single document and persist them in the KB."""
+    doc = kb["documents"].get(doc_id)
+    if not doc:
+        raise ValueError("Document not found.")
+
+    summary = doc.get("summary", "")
+    concepts = doc.get("concepts", [])
+    chunks = get_chunks_fn(doc_id)
+    excerpt = "\n\n".join(chunks[:3])[:3500]
+
+    prompt = f"""
+Create 6 multiple-choice study questions for one document.
+Return JSON only in this shape:
+[
+  {{
+    "prompt": "Question text",
+    "options": ["A", "B", "C", "D"],
+    "answer_index": 0,
+    "explanation": "Why the answer is correct",
+    "topic": "single topic label",
+    "difficulty": "easy|medium|hard"
+  }}
+]
+
+Use the document summary, concepts, and excerpt below. Make the questions varied.
+At least 2 questions should be medium or hard.
+
+Title: {doc.get("title", "")}
+Concepts: {json.dumps(concepts, ensure_ascii=False)}
+Summary:
+{summary[:2500]}
+
+Excerpt:
+{excerpt}
+"""
+
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=model_name or RAG_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
+        max_tokens=1800,
+    )
+    content = resp.choices[0].message.content or "[]"
+    parsed = _safe_json_value(content)
+
+    questions = []
+    if isinstance(parsed, list):
+        for index, item in enumerate(parsed, 1):
+            if not isinstance(item, dict):
+                continue
+            options = item.get("options")
+            answer_index = item.get("answer_index")
+            prompt_text = str(item.get("prompt", "")).strip()
+            explanation = str(item.get("explanation", "")).strip()
+            topic = str(item.get("topic", "")).strip() or (concepts[0] if concepts else "Core concept")
+            difficulty = str(item.get("difficulty", "medium")).strip().lower()
+
+            if not prompt_text or not isinstance(options, list) or len(options) < 2:
+                continue
+            if not isinstance(answer_index, int) or answer_index < 0 or answer_index >= len(options):
+                continue
+            if difficulty not in {"easy", "medium", "hard"}:
+                difficulty = "medium"
+
+            questions.append({
+                "id": f"{doc_id}_q_{index}",
+                "prompt": prompt_text,
+                "options": [str(option).strip() for option in options[:4]],
+                "answer_index": answer_index,
+                "explanation": explanation,
+                "topic": topic,
+                "difficulty": difficulty,
+            })
+
+    if not questions:
+        fallback_concepts = concepts[:6] or ["Core concept", "Main idea", "Application"]
+        for index, concept in enumerate(fallback_concepts, 1):
+            questions.append({
+                "id": f"{doc_id}_q_{index}",
+                "prompt": f"Which idea best matches the role of '{concept}' in {doc.get('title', 'this document')}?",
+                "options": [
+                    f"It is a central idea discussed in the document.",
+                    "It is unrelated to the document.",
+                    "It is only a bibliography reference.",
+                    "It appears only as a file format.",
+                ],
+                "answer_index": 0,
+                "explanation": f"The document highlights {concept} as one of its key study topics.",
+                "topic": concept,
+                "difficulty": "easy" if index <= 2 else "medium",
+            })
+
+    with _kb_lock:
+        kb["documents"][doc_id]["questions"] = questions
+        save_kb(kb)
+
+    return questions
+
+
+def get_questions_by_document(kb: dict) -> list[dict]:
+    """Return all study questions grouped by document."""
+    grouped = []
+    for doc_id, doc in kb["documents"].items():
+        grouped.append({
+            "doc_id": doc_id,
+            "title": doc.get("title", doc_id),
+            "question_count": len(doc.get("questions", [])),
+            "questions": doc.get("questions", []),
+            "concepts": doc.get("concepts", []),
+        })
+    return grouped
+
+
+def _topic_stats(progress: dict, topic: str) -> dict:
+    topic_key = topic.strip().lower() or "general"
+    return progress.setdefault(topic_key, {"topic": topic, "correct": 0, "wrong": 0})
+
+
+def record_question_result(
+    kb: dict,
+    session_id: str,
+    doc_id: str,
+    question_id: str,
+    selected_index: int,
+) -> dict:
+    """Store quiz progress and return evaluation plus updated mastery."""
+    doc = kb["documents"].get(doc_id)
+    if not doc:
+        raise ValueError("Document not found.")
+
+    question = next((q for q in doc.get("questions", []) if q.get("id") == question_id), None)
+    if not question:
+        raise ValueError("Question not found.")
+
+    is_correct = selected_index == question["answer_index"]
+
+    with _kb_lock:
+        session_progress = kb["study_progress"].setdefault(session_id, {"topics": {}, "history": []})
+        topic_info = _topic_stats(session_progress["topics"], question.get("topic", "general"))
+        if is_correct:
+            topic_info["correct"] += 1
+        else:
+            topic_info["wrong"] += 1
+
+        session_progress["history"].append({
+            "doc_id": doc_id,
+            "question_id": question_id,
+            "topic": question.get("topic", "general"),
+            "selected_index": selected_index,
+            "correct": is_correct,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        save_kb(kb)
+
+    attempts = topic_info["correct"] + topic_info["wrong"]
+    mastery = round(topic_info["correct"] / attempts, 2) if attempts else 0.0
+
+    return {
+        "correct": is_correct,
+        "answer_index": question["answer_index"],
+        "explanation": question.get("explanation", ""),
+        "topic": question.get("topic", "general"),
+        "mastery": mastery,
+    }
+
+
+def pick_next_question(kb: dict, session_id: str, doc_id: str | None = None) -> dict | None:
+    """Recommend the next question, biased toward weaker topics."""
+    session_progress = kb.get("study_progress", {}).get(session_id, {"topics": {}, "history": []})
+    history_counts = {}
+    for item in session_progress.get("history", []):
+        history_counts[item["question_id"]] = history_counts.get(item["question_id"], 0) + 1
+
+    candidate_docs = (
+        [(doc_id, kb["documents"].get(doc_id))] if doc_id
+        else list(kb["documents"].items())
+    )
+
+    best_question = None
+    best_score = None
+    for current_doc_id, doc in candidate_docs:
+        if not doc:
+            continue
+        for question in doc.get("questions", []):
+            topic_key = question.get("topic", "general").strip().lower() or "general"
+            topic_progress = session_progress.get("topics", {}).get(topic_key, {"correct": 0, "wrong": 0})
+            attempts = topic_progress["correct"] + topic_progress["wrong"]
+            mastery = topic_progress["correct"] / attempts if attempts else 0.0
+            difficulty_bonus = {"easy": 0.0, "medium": 0.15, "hard": 0.3}.get(question.get("difficulty", "medium"), 0.15)
+            revisit_penalty = history_counts.get(question["id"], 0) * 0.25
+            score = (1.2 - mastery) + difficulty_bonus - revisit_penalty
+
+            if best_score is None or score > best_score:
+                best_score = score
+                best_question = {
+                    "doc_id": current_doc_id,
+                    "title": doc.get("title", current_doc_id),
+                    **question,
+                    "mastery": round(mastery, 2),
+                }
+
+    return best_question

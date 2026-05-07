@@ -7,6 +7,10 @@ const API = "";  // same origin
 let documents = [];
 let sessionId = sessionStorage.getItem("pkm_session") || crypto.randomUUID();
 sessionStorage.setItem("pkm_session", sessionId);
+let questionDocuments = [];
+let activeQuestionDocId = null;
+let activeQuestion = null;
+let lastQuestionResult = null;
 const knowledgeMapState = {
     scale: 1,
     minScale: 0.75,
@@ -35,6 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initUpload();
     initSearch();
     initChat();
+    initQuestions();
     initConnections();
     loadDocuments();
     loadStats();
@@ -58,6 +63,7 @@ function initRouter() {
 
         if (page === "connections") renderConnections();
         if (page === "summaries") renderSummaries();
+        if (page === "questions") loadQuestions();
     }
 
     navItems.forEach(item => {
@@ -208,6 +214,9 @@ async function loadDocuments() {
         renderDocuments();
         if ((window.location.hash.slice(1) || "documents") === "connections") {
             renderConnections();
+        }
+        if ((window.location.hash.slice(1) || "documents") === "questions") {
+            loadQuestions();
         }
     } catch (err) {
         console.error("Failed to load documents:", err);
@@ -446,6 +455,181 @@ function renderSummaries() {
             <div class="summary-body">${escapeHtml(doc.summary)}</div>
         </div>
     `).join("");
+}
+
+// ── Questions ─────────────────────────────────────────────────────────────
+
+function initQuestions() {
+    document.getElementById("questions-refresh-btn").addEventListener("click", loadQuestions);
+    document.getElementById("generate-doc-questions-btn").addEventListener("click", generateQuestionsForActiveDoc);
+    document.getElementById("adaptive-next-btn").addEventListener("click", loadAdaptiveQuestion);
+}
+
+async function loadQuestions() {
+    try {
+        const res = await fetch(`${API}/api/questions`);
+        const data = await res.json();
+        questionDocuments = data.documents || [];
+        renderQuestionDocList();
+
+        if (!activeQuestionDocId && questionDocuments.length) {
+            activeQuestionDocId = questionDocuments[0].doc_id;
+        }
+        if (activeQuestionDocId) {
+            const currentDoc = questionDocuments.find(doc => doc.doc_id === activeQuestionDocId);
+            if (currentDoc) {
+                activeQuestion = currentDoc.questions?.[0] || null;
+            }
+        }
+        renderQuestionsPanel();
+    } catch (err) {
+        console.error("Failed to load questions:", err);
+    }
+}
+
+function renderQuestionDocList() {
+    const list = document.getElementById("questions-doc-list");
+    if (!questionDocuments.length) {
+        list.innerHTML = '<p class="empty-state">Upload PDFs first to generate questions.</p>';
+        return;
+    }
+
+    list.innerHTML = questionDocuments.map(doc => `
+        <button class="questions-doc-item ${doc.doc_id === activeQuestionDocId ? "active" : ""}" onclick="selectQuestionDocument('${doc.doc_id}')">
+            <div class="questions-doc-item-title">${escapeHtml(doc.title)}</div>
+            <div class="questions-doc-item-meta">${doc.question_count} questions · ${escapeHtml((doc.concepts || []).slice(0, 2).join(", ") || "No concepts yet")}</div>
+        </button>
+    `).join("");
+}
+
+function selectQuestionDocument(docId) {
+    activeQuestionDocId = docId;
+    lastQuestionResult = null;
+    const currentDoc = questionDocuments.find(doc => doc.doc_id === docId);
+    activeQuestion = currentDoc?.questions?.[0] || null;
+    renderQuestionDocList();
+    renderQuestionsPanel();
+}
+
+function renderQuestionsPanel() {
+    const activeLabel = document.getElementById("questions-active-doc");
+    const wrap = document.getElementById("questions-card-wrap");
+    const currentDoc = questionDocuments.find(doc => doc.doc_id === activeQuestionDocId);
+
+    if (!currentDoc) {
+        activeLabel.textContent = "Pick a PDF to begin.";
+        wrap.innerHTML = '<div class="empty-state">Choose a PDF from the left to study it.</div>';
+        return;
+    }
+
+    activeLabel.textContent = `${currentDoc.title} · ${currentDoc.question_count} questions`;
+
+    if (!currentDoc.question_count) {
+        wrap.innerHTML = '<div class="empty-state">No questions generated for this PDF yet. Click "Generate Questions".</div>';
+        return;
+    }
+
+    const question = activeQuestion || currentDoc.questions[0];
+    wrap.innerHTML = renderQuestionCard(question, currentDoc.title, lastQuestionResult);
+}
+
+function renderQuestionCard(question, docTitle, result) {
+    const selectedIndex = result?.selected_index;
+    const correctIndex = result?.answer_index;
+    const feedbackHtml = result ? `
+        <div class="question-feedback">
+            <div class="question-feedback-status">${result.correct ? "Correct" : "Not quite"}</div>
+            <div class="question-explanation">${escapeHtml(result.explanation || "")}</div>
+            <div class="question-mastery">Topic mastery: ${Math.round((result.mastery || 0) * 100)}%</div>
+            <div class="question-next-wrap">
+                <button class="btn btn-secondary" onclick="loadAdaptiveQuestion()">Next Adaptive Question</button>
+            </div>
+        </div>
+    ` : "";
+
+    return `
+        <div class="question-card">
+            <div class="question-card-header">
+                <span class="question-topic-badge">${escapeHtml(question.topic || "Core concept")}</span>
+                <span class="question-difficulty">${escapeHtml(question.difficulty || "medium")}</span>
+            </div>
+            <div class="question-meta">${escapeHtml(docTitle)}</div>
+            <div class="question-prompt">${escapeHtml(question.prompt)}</div>
+            <div class="question-options">
+                ${question.options.map((option, index) => {
+                    let stateClass = "";
+                    if (result) {
+                        if (index === correctIndex) stateClass = "correct";
+                        else if (index === selectedIndex) stateClass = "wrong";
+                    }
+                    return `<button class="question-option ${stateClass}" onclick="submitQuestionAnswer('${question.doc_id || activeQuestionDocId}', '${question.id}', ${index})" ${result ? "disabled" : ""}>${escapeHtml(option)}</button>`;
+                }).join("")}
+            </div>
+            ${feedbackHtml}
+        </div>
+    `;
+}
+
+async function generateQuestionsForActiveDoc() {
+    if (!activeQuestionDocId) return;
+    showLoading("Generating study questions...");
+    try {
+        const res = await fetch(`${API}/api/questions/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ doc_id: activeQuestionDocId }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to generate questions");
+        activeQuestion = data.questions?.[0] || null;
+        lastQuestionResult = null;
+        await loadQuestions();
+    } catch (err) {
+        alert(`Error: ${err.message}`);
+    }
+    hideLoading();
+}
+
+async function submitQuestionAnswer(docId, questionId, selectedIndex) {
+    try {
+        const res = await fetch(`${API}/api/questions/answer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                session_id: sessionId,
+                doc_id: docId,
+                question_id: questionId,
+                selected_index: selectedIndex,
+            }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to submit answer");
+        lastQuestionResult = { ...data.result, selected_index: selectedIndex };
+        if (activeQuestion) activeQuestion.doc_id = docId;
+        renderQuestionsPanel();
+    } catch (err) {
+        alert(`Error: ${err.message}`);
+    }
+}
+
+async function loadAdaptiveQuestion() {
+    try {
+        const res = await fetch(`${API}/api/questions/next`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sessionId, doc_id: activeQuestionDocId }),
+        });
+        const data = await res.json();
+        activeQuestion = data.question;
+        lastQuestionResult = null;
+        if (data.question?.doc_id) {
+            activeQuestionDocId = data.question.doc_id;
+        }
+        renderQuestionDocList();
+        renderQuestionsPanel();
+    } catch (err) {
+        alert(`Error: ${err.message}`);
+    }
 }
 
 function toggleSummary(header) {

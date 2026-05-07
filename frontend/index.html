@@ -24,6 +24,9 @@
                 <a href="#summaries" class="nav-item" data-page="summaries">
                     <span class="nav-icon">&#128221;</span> Summaries
                 </a>
+                <a href="#questions" class="nav-item" data-page="questions">
+                    <span class="nav-icon">&#10067;</span> Questions
+                </a>
                 <a href="#chat" class="nav-item" data-page="chat">
                     <span class="nav-icon">&#128172;</span> Chat
                 </a>
@@ -126,6 +129,36 @@
                 </div>
                 <div id="summaries-list" class="summaries-list">
                     <p class="empty-state">No summaries yet. Upload documents to generate summaries automatically.</p>
+                </div>
+            </div>
+
+            <div id="page-questions" class="page">
+                <div class="page-header">
+                    <h2>Study Questions</h2>
+                    <button id="questions-refresh-btn" class="btn btn-secondary">Reload Questions</button>
+                </div>
+                <div class="questions-layout">
+                    <aside class="questions-docs-panel">
+                        <div class="questions-panel-header">
+                            <h3>By PDF</h3>
+                            <p>Select a document to study its question set.</p>
+                        </div>
+                        <div id="questions-doc-list" class="questions-doc-list">
+                            <p class="empty-state">No documents yet.</p>
+                        </div>
+                    </aside>
+                    <section class="questions-main-panel">
+                        <div class="questions-toolbar">
+                            <div id="questions-active-doc" class="questions-active-doc">Pick a PDF to begin.</div>
+                            <div class="questions-actions">
+                                <button id="generate-doc-questions-btn" class="btn btn-primary" type="button">Generate Questions</button>
+                                <button id="adaptive-next-btn" class="btn btn-secondary" type="button">Adaptive Next</button>
+                            </div>
+                        </div>
+                        <div id="questions-card-wrap" class="questions-card-wrap">
+                            <div class="empty-state">Choose a PDF from the left to view questions, or use adaptive mode once questions exist.</div>
+                        </div>
+                    </section>
                 </div>
             </div>
 
