@@ -482,6 +482,7 @@ async function loadQuestions() {
             }
         }
         renderQuestionsPanel();
+        await loadAnswerHistory();
     } catch (err) {
         console.error("Failed to load questions:", err);
     }
@@ -581,16 +582,28 @@ function renderMultipleChoiceCard(question, docTitle, result) {
 function renderShortAnswerCard(question, docTitle, result) {
     const feedbackHtml = result ? `
         <div class="question-feedback">
-            <div class="question-feedback-status">Submitted</div>
-            <div class="question-explanation">
-                <strong>Sample answer:</strong><br>
-                ${escapeHtml(question.sample_answer || "No sample answer available.")}
+            <div class="question-feedback-status">
+                Score: ${Math.round(result.score || 0)}%
             </div>
-            <div class="question-explanation">
-                ${escapeHtml(question.explanation || "")}
+
+            <div class="question-mastery">
+                Topic mastery: ${Math.round((result.mastery || 0) * 100)}%
             </div>
+
+            <div class="question-explanation">
+                <strong>AI Feedback:</strong><br>
+                ${escapeHtml(result.feedback || "")}
+            </div>
+
+            <div class="question-explanation">
+                <strong>Sample Answer:</strong><br>
+                ${escapeHtml(result.sample_answer || question.sample_answer || "")}
+            </div>
+
             <div class="question-next-wrap">
-                <button class="btn btn-secondary" onclick="loadAdaptiveQuestion()">Next Adaptive Question</button>
+                <button class="btn btn-secondary" onclick="loadAdaptiveQuestion()">
+                    Next Adaptive Question
+                </button>
             </div>
         </div>
     ` : "";
@@ -623,11 +636,35 @@ async function submitShortAnswer(docId, questionId) {
         return;
     }
 
-    lastQuestionResult = {
-        submitted: true,
-    };
+    showLoading("Evaluating answer...");
 
-    renderQuestionsPanel();
+    try {
+        const res = await fetch(`${API}/api/questions/short-answer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                session_id: "default",
+                doc_id: docId,
+                question_id: questionId,
+                answer_text: answer,
+            }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error || "Failed to evaluate answer");
+        }
+
+        lastQuestionResult = data.result;
+
+        renderQuestionsPanel();
+        await loadAnswerHistory();
+    } catch (err) {
+        alert(`Error: ${err.message}`);
+    }
+
+    hideLoading();
 }
 
 async function generateQuestionsForActiveDoc() {
@@ -662,7 +699,7 @@ async function submitQuestionAnswer(docId, questionId, selectedIndex) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                session_id: sessionId,
+                session_id: "default",
                 doc_id: docId,
                 question_id: questionId,
                 selected_index: selectedIndex,
@@ -1385,4 +1422,78 @@ function escapeHtml(str) {
     const div = document.createElement("div");
     div.textContent = str;
     return div.innerHTML;
+}
+
+// ── Answer History ────────────────────────────────────────────────────────
+async function loadAnswerHistory() {
+    try {
+        const res = await fetch(`${API}/api/questions/history?session_id=default`);
+        const data = await res.json();
+
+        renderAnswerHistory(data.history || []);
+    } catch (err) {
+        console.error("Failed to load answer history:", err);
+    }
+}
+
+function renderAnswerHistory(history) {
+    const list = document.getElementById("history-list");
+    if (!list) return;
+
+    if (!history.length) {
+        list.innerHTML = '<div class="empty-state">No history yet.</div>';
+        return;
+    }
+
+    list.innerHTML = history.map(item => {
+        if (item.type === "multiple_choice") {
+            return `
+                <div class="history-card">
+                    <div class="history-type-badge">Multiple Choice</div>
+                    <div class="history-score">
+                        ${item.correct ? "Correct" : "Wrong"}
+                    </div>
+                    <div class="history-question">
+                        ${escapeHtml(item.question_prompt || "")}
+                    </div>
+                    <div class="history-answer">
+                        <strong>Your answer:</strong><br>
+                        ${escapeHtml(item.selected_answer || "")}
+                    </div>
+                    <div class="history-feedback">
+                        <strong>Correct answer:</strong><br>
+                        ${escapeHtml(item.correct_answer || "")}
+                    </div>
+                    <div class="history-feedback">
+                        <strong>Explanation:</strong><br>
+                        ${escapeHtml(item.explanation || "")}
+                    </div>
+                    <div class="history-time">
+                        ${escapeHtml(item.timestamp || "")}
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="history-card">
+                <div class="history-type-badge">Short Answer</div>
+                <div class="history-score">Score: ${Math.round(item.score || 0)}%</div>
+                <div class="history-question">
+                    ${escapeHtml(item.question_prompt || "")}
+                </div>
+                <div class="history-answer">
+                    <strong>Your answer:</strong><br>
+                    ${escapeHtml(item.user_answer || "")}
+                </div>
+                <div class="history-feedback">
+                    <strong>Feedback:</strong><br>
+                    ${escapeHtml(item.feedback || "")}
+                </div>
+                <div class="history-time">
+                    ${escapeHtml(item.timestamp || "")}
+                </div>
+            </div>
+        `;
+    }).join("");
 }

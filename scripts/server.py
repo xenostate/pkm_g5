@@ -24,12 +24,15 @@ Start:
 """
 
 import asyncio
+import datetime
 import logging
 import threading
 import time
 from pathlib import Path
+from datetime import datetime
 
 from dotenv import load_dotenv
+from sympy import content
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from contextlib import asynccontextmanager
@@ -43,9 +46,10 @@ from scripts.indexer import get_model, get_chroma_collection, ingest_pdf, ingest
 from scripts.retriever import retrieve
 from scripts.rag import (
     load_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
-    answer_question, summarize_document, extract_concepts, generate_document_questions,
+    answer_question, save_kb, summarize_document, extract_concepts, generate_document_questions,
     get_questions_by_document, pick_next_question, record_question_result,
     refresh_missing_concepts, refresh_all_connections,
+    get_openai_client, RAG_MODEL, _safe_json_value,_kb_lock,
 )
 
 # ── Config ──────────────────────────────────────────────────────────────────
@@ -145,6 +149,13 @@ class QuestionAnswerRequest(BaseModel):
     doc_id: str
     question_id: str
     selected_index: int
+
+
+class ShortAnswerRequest(BaseModel):
+    session_id: str = "default"
+    doc_id: str
+    question_id: str
+    answer_text: str
 
 
 class QuestionNextRequest(BaseModel):
@@ -419,6 +430,116 @@ async def answer_question_card(req: QuestionAnswerRequest):
 
     next_question = await asyncio.to_thread(pick_next_question, kb, req.session_id, req.doc_id)
     return {"result": result, "next_question": next_question}
+
+@app.post("/api/questions/short-answer")
+async def answer_short_question(req: ShortAnswerRequest):
+    global kb
+
+    doc = kb["documents"].get(req.doc_id)
+    if not doc:
+        return JSONResponse({"error": "Document not found."}, status_code=404)
+
+    question = next(
+        (q for q in doc.get("questions", []) if q.get("id") == req.question_id),
+        None
+    )
+
+    if not question:
+        return JSONResponse({"error": "Question not found."}, status_code=404)
+
+    sample_answer = question.get("sample_answer", "")
+
+    prompt = f"""
+You are grading a student's short-answer response.
+
+Question:
+{question.get("prompt", "")}
+
+Expected answer:
+{sample_answer}
+
+Student answer:
+{req.answer_text}
+
+Evaluate the student's answer.
+
+Return JSON only in this format:
+{{
+  "score": 0-100,
+  "feedback": "Detailed feedback",
+  "mastery": 0.0-1.0
+}}
+"""
+
+    client = get_openai_client()
+
+    resp = client.chat.completions.create(
+        model=RAG_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+        max_tokens=400,
+    )
+
+    content = resp.choices[0].message.content or "{}"
+    parsed = _safe_json_value(content)
+
+    if not isinstance(parsed, dict):
+        parsed = {}
+
+    result = {
+        "score": parsed.get("score", 0),
+        "feedback": parsed.get("feedback", ""),
+        "mastery": parsed.get("mastery", 0.0),
+        "sample_answer": sample_answer,
+    }
+    history_entry = {
+        "question_id": req.question_id,
+        "question_prompt": question.get("prompt", ""),
+        "user_answer": req.answer_text,
+        "score": result["score"],
+        "feedback": result["feedback"],
+        "timestamp": datetime.now().isoformat(),
+    }
+    with _kb_lock:
+        sessions = kb.setdefault("question_sessions", {})
+        session = sessions.setdefault(req.session_id, {})
+        history = session.setdefault("short_answer_history", [])
+
+        history.append(history_entry)
+
+        save_kb(kb)
+
+    return {"result": result}
+
+@app.get("/api/questions/history")
+async def get_answer_history(session_id: str = "default"):
+    global kb
+
+    short_history = (
+        kb.get("question_sessions", {})
+        .get(session_id, {})
+        .get("short_answer_history", [])
+    )
+
+    multiple_history = (
+        kb.get("study_progress", {})
+        .get(session_id, {})
+        .get("history", [])
+    )
+
+    history = short_history + multiple_history
+
+    history.sort(
+        key=lambda item: item.get("timestamp", ""),
+        reverse=True
+    )
+
+    return {
+        "session_id": session_id,
+        "history": history
+    }
+
+
 
 
 @app.post("/api/questions/next")

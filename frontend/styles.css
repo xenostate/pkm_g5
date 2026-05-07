@@ -1188,6 +1188,7 @@ body {
     }
 }
 
+/* ── Short Answer Input (for questions) ───────────────────────────────── */
 .short-answer-input {
     display: block;
     width: 100%;
@@ -1206,4 +1207,59 @@ body {
 
 .short-answer-input::placeholder {
     color: #888;
+}
+
+
+/* ── History Section ─────────────────────────────────────────────────────── */
+.history-section {
+    margin-top: 32px;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.history-card {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 14px;
+    padding: 18px;
+}
+
+.history-score {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #4ade80;
+}
+
+.history-question {
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.history-answer,
+.history-feedback {
+    margin-top: 10px;
+    line-height: 1.5;
+    color: #ddd;
+}
+
+.history-time {
+    margin-top: 14px;
+    font-size: 12px;
+    color: #888;
+}
+
+.history-type-badge {
+    display: inline-block;
+    margin-bottom: 10px;
+    padding: 4px 10px;
+    border: 1px solid #444;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #ddd;
 }

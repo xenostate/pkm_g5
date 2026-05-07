@@ -684,7 +684,7 @@ Excerpt:
             explanation = str(item.get("explanation", "")).strip()
             topic = str(item.get("topic", "")).strip() or (concepts[0] if concepts else "Core concept")
             difficulty = str(item.get("difficulty", "medium")).strip().lower()
-            
+
             if question_type == "short_answer":
                 sample_answer = str(item.get("sample_answer", "")).strip()
 
@@ -791,19 +791,30 @@ def record_question_result(
             topic_info["correct"] += 1
         else:
             topic_info["wrong"] += 1
-
+        attempts = topic_info["correct"] + topic_info["wrong"]
+        mastery = round(topic_info["correct"] / attempts, 2) if attempts else 0.0
         session_progress["history"].append({
+            "type": "multiple_choice",
             "doc_id": doc_id,
             "question_id": question_id,
+            "question_prompt": question.get("prompt", ""),
             "topic": question.get("topic", "general"),
+
             "selected_index": selected_index,
+            "selected_answer": question.get("options", [])[selected_index],
+
+            "correct_index": question.get("answer_index"),
+            "correct_answer": question.get("options", [])[question.get("answer_index", 0)],
+
             "correct": is_correct,
+            "explanation": question.get("explanation", ""),
+            "mastery": mastery,
+
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
         save_kb(kb)
 
-    attempts = topic_info["correct"] + topic_info["wrong"]
-    mastery = round(topic_info["correct"] / attempts, 2) if attempts else 0.0
+    
 
     return {
         "correct": is_correct,

@@ -56,57 +56,93 @@
       "questions": [
         {
           "id": "ce2f99dc7c9d_q_1",
-          "type": "short_answer",
-          "prompt": "Why is it important for software engineers to understand different software engineering techniques?",
-          "sample_answer": "Understanding different software engineering techniques allows engineers to choose the most effective approach for the specific type of software being developed, ensuring reliability and cost-effectiveness.",
-          "explanation": "This answer is correct because it highlights the necessity of tailoring methodologies to the unique requirements of various software systems, which is a key concept in the document.",
+          "type": "multiple_choice",
+          "prompt": "What is the primary focus of software engineering as outlined in the document?",
+          "options": [
+            "Developing hardware systems",
+            "Creating reliable and cost-effective software systems",
+            "Marketing software products",
+            "Managing software sales"
+          ],
+          "answer_index": 1,
+          "explanation": "The document emphasizes that software engineering is essential for developing reliable and cost-effective software systems.",
           "topic": "Importance of software engineering",
-          "difficulty": "medium"
+          "difficulty": "easy"
         },
         {
           "id": "ce2f99dc7c9d_q_2",
-          "type": "short_answer",
-          "prompt": "Discuss the economic implications of software costs compared to hardware costs as mentioned in the document.",
-          "sample_answer": "Software costs often exceed hardware costs, especially in long-term projects where maintenance can be several times more expensive than initial development, impacting overall project budgets and economic planning.",
-          "explanation": "This answer is correct as it reflects the document's assertion that software maintenance is a significant cost factor, influencing financial decisions in software engineering.",
-          "topic": "Economic dependence of developed nations on software",
+          "type": "multiple_choice",
+          "prompt": "Which of the following is NOT mentioned as an attribute of good software?",
+          "options": [
+            "Maintainability",
+            "Dependability",
+            "Scalability",
+            "Efficiency"
+          ],
+          "answer_index": 2,
+          "explanation": "Scalability is not listed among the fundamental attributes of good software in the document.",
+          "topic": "Attributes of good software",
           "difficulty": "medium"
         },
         {
           "id": "ce2f99dc7c9d_q_3",
-          "type": "short_answer",
-          "prompt": "What role do ethical considerations play in software engineering according to the document?",
-          "sample_answer": "Ethical considerations are crucial in software engineering as they guide professionals in making responsible decisions that affect user safety, privacy, and the integrity of software systems.",
-          "explanation": "This answer is correct because it aligns with the document's emphasis on the importance of ethical standards and professional responsibilities in software development.",
-          "topic": "Ethical and professional issues in software engineering",
-          "difficulty": "hard"
-        },
-        {
-          "id": "ce2f99dc7c9d_q_4",
-          "type": "short_answer",
-          "prompt": "Explain how case studies enhance the understanding of software engineering principles.",
-          "sample_answer": "Case studies provide real-world examples that illustrate the application of software engineering principles, helping students connect theoretical concepts to practical scenarios.",
-          "explanation": "This answer is correct as it captures the document's intent to use case studies as a tool for contextualizing theoretical knowledge in software engineering.",
-          "topic": "Case studies in software engineering",
+          "type": "multiple_choice",
+          "prompt": "According to the document, what often exceeds development costs in software projects?",
+          "options": [
+            "Initial development costs",
+            "Hardware costs",
+            "Maintenance costs",
+            "Marketing costs"
+          ],
+          "answer_index": 2,
+          "explanation": "The document states that maintenance costs often exceed development costs, especially for long-lived systems.",
+          "topic": "Software costs",
           "difficulty": "medium"
         },
         {
-          "id": "ce2f99dc7c9d_q_5",
-          "type": "short_answer",
-          "prompt": "What are the fundamental attributes of good software mentioned in the document, and why are they important?",
-          "sample_answer": "The fundamental attributes of good software include maintainability, dependability, efficiency, and acceptability, which are important because they ensure that software meets user needs and can adapt to changes over time.",
-          "explanation": "This answer is correct because it identifies the key attributes outlined in the document and explains their significance in delivering effective software solutions.",
-          "topic": "Attributes of good software",
+          "id": "ce2f99dc7c9d_q_4",
+          "type": "multiple_choice",
+          "prompt": "What is a key ethical consideration for software engineers as discussed in the document?",
+          "options": [
+            "Maximizing profit",
+            "Adhering to the ACM/IEEE Code of Ethics",
+            "Minimizing development time",
+            "Focusing solely on technical skills"
+          ],
+          "answer_index": 1,
+          "explanation": "The document emphasizes the importance of adhering to ethical standards, particularly the ACM/IEEE Code of Ethics, in software engineering.",
+          "topic": "Ethical issues in software engineering",
           "difficulty": "hard"
         },
         {
-          "id": "ce2f99dc7c9d_q_6",
-          "type": "short_answer",
-          "prompt": "How does the document differentiate between generic and customized software products?",
-          "sample_answer": "Generic software products are designed for a broad market and are owned by the developer, while customized software products are tailored for specific clients and their specifications are controlled by the customer.",
-          "explanation": "This answer is correct as it accurately reflects the distinctions made in the document regarding ownership and purpose of different software types.",
-          "topic": "Software products",
+          "id": "ce2f99dc7c9d_q_5",
+          "type": "multiple_choice",
+          "prompt": "Which software development model is characterized by a linear sequential flow?",
+          "options": [
+            "Iterative Model",
+            "Waterfall Model",
+            "Component-based Model",
+            "Agile Model"
+          ],
+          "answer_index": 1,
+          "explanation": "The Waterfall Model is known for its linear sequential flow, where each phase must be completed before the next begins.",
+          "topic": "Models of software development",
           "difficulty": "easy"
+        },
+        {
+          "id": "ce2f99dc7c9d_q_6",
+          "type": "multiple_choice",
+          "prompt": "What is the significance of case studies in the context of software engineering as per the document?",
+          "options": [
+            "They provide theoretical knowledge only",
+            "They illustrate practical applications of software engineering principles",
+            "They focus on marketing strategies",
+            "They are used for hardware development"
+          ],
+          "answer_index": 1,
+          "explanation": "Case studies serve to contextualize theoretical concepts and demonstrate their application in critical systems that impact health and safety.",
+          "topic": "Case studies in software engineering",
+          "difficulty": "hard"
         }
       ]
     },
@@ -929,7 +965,7 @@
       "topics": {
         "importance of software engineering": {
           "topic": "Importance of software engineering",
-          "correct": 1,
+          "correct": 4,
           "wrong": 0
         }
       },
@@ -941,6 +977,112 @@
           "selected_index": 0,
           "correct": true,
           "timestamp": "2026-05-07T08:03:29.255856+00:00"
+        },
+        {
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "topic": "Importance of software engineering",
+          "selected_index": 1,
+          "correct": true,
+          "timestamp": "2026-05-07T14:09:01.661955+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "What is the primary focus of software engineering as outlined in the document?",
+          "topic": "Importance of software engineering",
+          "selected_index": 1,
+          "selected_answer": "Creating reliable and cost-effective software systems",
+          "correct_index": 1,
+          "correct_answer": "Creating reliable and cost-effective software systems",
+          "correct": true,
+          "explanation": "The document emphasizes that software engineering is essential for developing reliable and cost-effective software systems.",
+          "mastery": 1.0,
+          "timestamp": "2026-05-07T14:17:43.097678+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "What is the primary focus of software engineering as outlined in the document?",
+          "topic": "Importance of software engineering",
+          "selected_index": 1,
+          "selected_answer": "Creating reliable and cost-effective software systems",
+          "correct_index": 1,
+          "correct_answer": "Creating reliable and cost-effective software systems",
+          "correct": true,
+          "explanation": "The document emphasizes that software engineering is essential for developing reliable and cost-effective software systems.",
+          "mastery": 1.0,
+          "timestamp": "2026-05-07T14:20:40.794561+00:00"
+        }
+      ]
+    },
+    "default": {
+      "topics": {
+        "importance of software engineering": {
+          "topic": "Importance of software engineering",
+          "correct": 1,
+          "wrong": 0
+        }
+      },
+      "history": [
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "What is the primary focus of software engineering as outlined in the document?",
+          "topic": "Importance of software engineering",
+          "selected_index": 1,
+          "selected_answer": "Creating reliable and cost-effective software systems",
+          "correct_index": 1,
+          "correct_answer": "Creating reliable and cost-effective software systems",
+          "correct": true,
+          "explanation": "The document emphasizes that software engineering is essential for developing reliable and cost-effective software systems.",
+          "mastery": 1.0,
+          "timestamp": "2026-05-07T14:21:51.231344+00:00"
+        }
+      ]
+    }
+  },
+  "question_sessions": {
+    "579686a6-ef6f-4093-8b23-1eed6b811400": {
+      "short_answer_history": [
+        {
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "Why is it important for software engineers to understand different software engineering techniques?",
+          "user_answer": "Software engineers need to understand different techniques because each project has different requirements and challenges. Using the right techniques helps improve software quality, reduce time and cost, and adapt to changes effectively.",
+          "score": 85,
+          "feedback": "The student provides a solid understanding of why it's important for software engineers to know various techniques. They mention project requirements, software quality, time and cost reduction, and adaptability, which are all relevant points. However, the answer could be improved by explicitly stating the importance of choosing the most effective approach for specific software types, as mentioned in the expected answer. Overall, a good response that captures the essence of the question.",
+          "timestamp": "2026-05-07T22:52:50.111443"
+        },
+        {
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "Why is it important for software engineers to understand different software engineering techniques?",
+          "user_answer": "Software engineers need to understand different techniques because each project has different requirements and challenges. Using the right techniques helps improve software quality, reduce time and cost, and adapt to changes effectively.",
+          "score": 85,
+          "feedback": "The student provides a solid understanding of why it's important for software engineers to know various techniques. They mention project requirements, software quality, time, cost, and adaptability, which are all relevant points. However, the answer could be improved by explicitly stating how these techniques contribute to reliability and cost-effectiveness, as mentioned in the expected answer. Overall, a good response that captures the essence of the question.",
+          "timestamp": "2026-05-07T22:57:39.532375"
+        }
+      ]
+    },
+    "default": {
+      "short_answer_history": [
+        {
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "Why is it important for software engineers to understand different software engineering techniques?",
+          "user_answer": "Software engineers need to understand different techniques because each project has different requirements and challenges. Using the right techniques helps improve software quality, reduce time and cost, and adapt to changes effectively.",
+          "score": 85,
+          "feedback": "The student provides a solid understanding of why it's important for software engineers to know various techniques. They mention the importance of adapting to different project requirements and challenges, which aligns with the expected answer. However, the response could be improved by explicitly mentioning the goals of reliability and cost-effectiveness, which are key aspects of the expected answer.",
+          "timestamp": "2026-05-07T23:00:31.467961"
+        },
+        {
+          "question_id": "ce2f99dc7c9d_q_3",
+          "question_prompt": "What role do ethical considerations play in software engineering according to the document?",
+          "user_answer": "Ethical considerations in software engineering help ensure that software is developed responsibly and safely. They guide engineers to protect user privacy, maintain security, avoid harm, and act professionally while developing and maintaining software systems.",
+          "score": 90,
+          "feedback": "The student provides a comprehensive understanding of the role of ethical considerations in software engineering, mentioning key aspects such as user privacy, security, and responsible development. However, the answer could be improved by explicitly mentioning the integrity of software systems as part of the ethical considerations.",
+          "timestamp": "2026-05-07T23:07:30.453886"
         }
       ]
     }
