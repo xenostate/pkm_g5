@@ -534,6 +534,14 @@ function renderQuestionsPanel() {
 }
 
 function renderQuestionCard(question, docTitle, result) {
+    if (question.type === "short_answer") {
+        return renderShortAnswerCard(question, docTitle, result);
+    }
+
+    return renderMultipleChoiceCard(question, docTitle, result);
+}
+
+function renderMultipleChoiceCard(question, docTitle, result) {
     const selectedIndex = result?.selected_index;
     const correctIndex = result?.answer_index;
     const feedbackHtml = result ? `
@@ -556,7 +564,7 @@ function renderQuestionCard(question, docTitle, result) {
             <div class="question-meta">${escapeHtml(docTitle)}</div>
             <div class="question-prompt">${escapeHtml(question.prompt)}</div>
             <div class="question-options">
-                ${question.options.map((option, index) => {
+                ${(question.options || []).map((option, index) => {
                     let stateClass = "";
                     if (result) {
                         if (index === correctIndex) stateClass = "correct";
@@ -570,14 +578,72 @@ function renderQuestionCard(question, docTitle, result) {
     `;
 }
 
+function renderShortAnswerCard(question, docTitle, result) {
+    const feedbackHtml = result ? `
+        <div class="question-feedback">
+            <div class="question-feedback-status">Submitted</div>
+            <div class="question-explanation">
+                <strong>Sample answer:</strong><br>
+                ${escapeHtml(question.sample_answer || "No sample answer available.")}
+            </div>
+            <div class="question-explanation">
+                ${escapeHtml(question.explanation || "")}
+            </div>
+            <div class="question-next-wrap">
+                <button class="btn btn-secondary" onclick="loadAdaptiveQuestion()">Next Adaptive Question</button>
+            </div>
+        </div>
+    ` : "";
+
+    return `
+        <div class="question-card">
+            <div class="question-card-header">
+                <span class="question-topic-badge">${escapeHtml(question.topic || "Core concept")}</span>
+                <span class="question-difficulty">${escapeHtml(question.difficulty || "medium")}</span>
+            </div>
+            <div class="question-meta">${escapeHtml(docTitle)}</div>
+            <div class="question-prompt">${escapeHtml(question.prompt)}</div>
+
+            <textarea id="short-answer-input" class="short-answer-input" placeholder="Write your answer here..." ${result ? "disabled" : ""}></textarea>
+
+            <button class="btn btn-primary" onclick="submitShortAnswer('${question.doc_id || activeQuestionDocId}', '${question.id}')" ${result ? "disabled" : ""}>
+                Submit Answer
+            </button>
+
+            ${feedbackHtml}
+        </div>
+    `;
+}
+
+async function submitShortAnswer(docId, questionId) {
+    const answer = document.getElementById("short-answer-input").value;
+
+    if (!answer.trim()) {
+        alert("Please enter an answer.");
+        return;
+    }
+
+    lastQuestionResult = {
+        submitted: true,
+    };
+
+    renderQuestionsPanel();
+}
+
 async function generateQuestionsForActiveDoc() {
     if (!activeQuestionDocId) return;
+
+    const questionType = document.getElementById("question-type-select").value;
+
     showLoading("Generating study questions...");
     try {
         const res = await fetch(`${API}/api/questions/generate`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ doc_id: activeQuestionDocId }),
+            body: JSON.stringify({
+                doc_id: activeQuestionDocId,
+                question_type: questionType,
+            }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to generate questions");

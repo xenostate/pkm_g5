@@ -596,8 +596,8 @@ def _safe_json_value(raw_text: str):
     return None
 
 
-def generate_document_questions(doc_id: str, kb: dict, get_chunks_fn, model_name: str | None = None) -> list[dict]:
-    """Generate study questions for a single document and persist them in the KB."""
+def generate_document_questions(doc_id: str, kb: dict, get_chunks_fn, question_type: str = "multiple_choice", model_name: str | None = None) -> list[dict]:
+    """Generate study questions (multiple-choice or short-answer) for a document and persist them in the KB."""
     doc = kb["documents"].get(doc_id)
     if not doc:
         raise ValueError("Document not found.")
@@ -607,8 +607,38 @@ def generate_document_questions(doc_id: str, kb: dict, get_chunks_fn, model_name
     chunks = get_chunks_fn(doc_id)
     excerpt = "\n\n".join(chunks[:3])[:3500]
 
-    prompt = f"""
+    if question_type == "short_answer":
+        prompt = f"""
+Create 6 short-answer study questions for one document.
+
+Return JSON only in this shape:
+[
+  {{
+    "prompt": "Question text",
+    "sample_answer": "Example ideal answer",
+    "explanation": "Why this answer is correct",
+    "topic": "single topic label",
+    "difficulty": "easy|medium|hard"
+  }}
+]
+
+Use the document summary, concepts, and excerpt below.
+The questions should require explanation and reasoning, not simple memorization.
+At least 2 questions should be medium or hard.
+
+Title: {doc.get("title", "")}
+Concepts: {json.dumps(concepts, ensure_ascii=False)}
+
+Summary:
+{summary[:2500]}
+
+Excerpt:
+{excerpt}
+"""
+    else:
+        prompt = f"""
 Create 6 multiple-choice study questions for one document.
+
 Return JSON only in this shape:
 [
   {{
@@ -626,6 +656,7 @@ At least 2 questions should be medium or hard.
 
 Title: {doc.get("title", "")}
 Concepts: {json.dumps(concepts, ensure_ascii=False)}
+
 Summary:
 {summary[:2500]}
 
@@ -648,35 +679,54 @@ Excerpt:
         for index, item in enumerate(parsed, 1):
             if not isinstance(item, dict):
                 continue
-            options = item.get("options")
-            answer_index = item.get("answer_index")
+            
             prompt_text = str(item.get("prompt", "")).strip()
             explanation = str(item.get("explanation", "")).strip()
             topic = str(item.get("topic", "")).strip() or (concepts[0] if concepts else "Core concept")
             difficulty = str(item.get("difficulty", "medium")).strip().lower()
+            
+            if question_type == "short_answer":
+                sample_answer = str(item.get("sample_answer", "")).strip()
 
-            if not prompt_text or not isinstance(options, list) or len(options) < 2:
-                continue
-            if not isinstance(answer_index, int) or answer_index < 0 or answer_index >= len(options):
-                continue
-            if difficulty not in {"easy", "medium", "hard"}:
-                difficulty = "medium"
+                if not prompt_text or not sample_answer:
+                    continue
 
-            questions.append({
-                "id": f"{doc_id}_q_{index}",
-                "prompt": prompt_text,
-                "options": [str(option).strip() for option in options[:4]],
-                "answer_index": answer_index,
-                "explanation": explanation,
-                "topic": topic,
-                "difficulty": difficulty,
-            })
+                questions.append({
+                    "id": f"{doc_id}_q_{index}",
+                    "type": "short_answer",
+                    "prompt": prompt_text,
+                    "sample_answer": sample_answer,
+                    "explanation": explanation,
+                    "topic": topic,
+                    "difficulty": difficulty,
+                })
+            else:
+                options = item.get("options")
+                answer_index = item.get("answer_index")
+
+                if not prompt_text or not isinstance(options, list) or len(options) < 2:
+                    continue
+                if not isinstance(answer_index, int) or answer_index < 0 or answer_index >= len(options):
+                    continue
+
+                questions.append({
+                    "id": f"{doc_id}_q_{index}",
+                    "type": "multiple_choice",
+                    "prompt": prompt_text,
+                    "options": [str(option).strip() for option in options[:4]],
+                    "answer_index": answer_index,
+                    "explanation": explanation,
+                    "topic": topic,
+                    "difficulty": difficulty,
+                })
+            
 
     if not questions:
         fallback_concepts = concepts[:6] or ["Core concept", "Main idea", "Application"]
         for index, concept in enumerate(fallback_concepts, 1):
             questions.append({
                 "id": f"{doc_id}_q_{index}",
+                "type": "multiple_choice",
                 "prompt": f"Which idea best matches the role of '{concept}' in {doc.get('title', 'this document')}?",
                 "options": [
                     f"It is a central idea discussed in the document.",

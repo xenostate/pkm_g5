@@ -56,87 +56,57 @@
       "questions": [
         {
           "id": "ce2f99dc7c9d_q_1",
-          "prompt": "What is one of the primary objectives of the course outlined in the document?",
-          "options": [
-            "To understand the importance of software engineering",
-            "To learn programming languages",
-            "To develop hardware systems",
-            "To create video games"
-          ],
-          "answer_index": 0,
-          "explanation": "Understanding the importance of software engineering is a key objective as stated in the document.",
+          "type": "short_answer",
+          "prompt": "Why is it important for software engineers to understand different software engineering techniques?",
+          "sample_answer": "Understanding different software engineering techniques allows engineers to choose the most effective approach for the specific type of software being developed, ensuring reliability and cost-effectiveness.",
+          "explanation": "This answer is correct because it highlights the necessity of tailoring methodologies to the unique requirements of various software systems, which is a key concept in the document.",
           "topic": "Importance of software engineering",
-          "difficulty": "easy"
+          "difficulty": "medium"
         },
         {
           "id": "ce2f99dc7c9d_q_2",
-          "prompt": "Which software development model emphasizes a sequential design process?",
-          "options": [
-            "Iterative Model",
-            "Waterfall Model",
-            "Component-based Model",
-            "Agile Model"
-          ],
-          "answer_index": 1,
-          "explanation": "The Waterfall Model is known for its sequential design process, where each phase must be completed before the next begins.",
-          "topic": "Models of software development",
+          "type": "short_answer",
+          "prompt": "Discuss the economic implications of software costs compared to hardware costs as mentioned in the document.",
+          "sample_answer": "Software costs often exceed hardware costs, especially in long-term projects where maintenance can be several times more expensive than initial development, impacting overall project budgets and economic planning.",
+          "explanation": "This answer is correct as it reflects the document's assertion that software maintenance is a significant cost factor, influencing financial decisions in software engineering.",
+          "topic": "Economic dependence of developed nations on software",
           "difficulty": "medium"
         },
         {
           "id": "ce2f99dc7c9d_q_3",
-          "prompt": "According to the document, what often exceeds development costs in software projects?",
-          "options": [
-            "Hardware costs",
-            "Maintenance costs",
-            "Training costs",
-            "Marketing costs"
-          ],
-          "answer_index": 1,
-          "explanation": "The document states that maintenance costs often exceed development costs, especially for long-lived systems.",
-          "topic": "Software costs",
-          "difficulty": "medium"
-        },
-        {
-          "id": "ce2f99dc7c9d_q_4",
-          "prompt": "What is a significant ethical consideration for software engineers mentioned in the document?",
-          "options": [
-            "Maximizing profit",
-            "Adhering to the ACM/IEEE Code of Ethics",
-            "Minimizing development time",
-            "Focusing solely on technical skills"
-          ],
-          "answer_index": 1,
-          "explanation": "The document emphasizes the importance of adhering to ethical standards, specifically the ACM/IEEE Code of Ethics.",
+          "type": "short_answer",
+          "prompt": "What role do ethical considerations play in software engineering according to the document?",
+          "sample_answer": "Ethical considerations are crucial in software engineering as they guide professionals in making responsible decisions that affect user safety, privacy, and the integrity of software systems.",
+          "explanation": "This answer is correct because it aligns with the document's emphasis on the importance of ethical standards and professional responsibilities in software development.",
           "topic": "Ethical and professional issues in software engineering",
           "difficulty": "hard"
         },
         {
+          "id": "ce2f99dc7c9d_q_4",
+          "type": "short_answer",
+          "prompt": "Explain how case studies enhance the understanding of software engineering principles.",
+          "sample_answer": "Case studies provide real-world examples that illustrate the application of software engineering principles, helping students connect theoretical concepts to practical scenarios.",
+          "explanation": "This answer is correct as it captures the document's intent to use case studies as a tool for contextualizing theoretical knowledge in software engineering.",
+          "topic": "Case studies in software engineering",
+          "difficulty": "medium"
+        },
+        {
           "id": "ce2f99dc7c9d_q_5",
-          "prompt": "What type of software product is specifically commissioned by a customer?",
-          "options": [
-            "Generic products",
-            "Customized products",
-            "Open-source products",
-            "Commercial off-the-shelf products"
-          ],
-          "answer_index": 1,
-          "explanation": "Customized products are developed to meet the specific needs of a customer, unlike generic products which are sold to any customer.",
-          "topic": "Software Products",
-          "difficulty": "easy"
+          "type": "short_answer",
+          "prompt": "What are the fundamental attributes of good software mentioned in the document, and why are they important?",
+          "sample_answer": "The fundamental attributes of good software include maintainability, dependability, efficiency, and acceptability, which are important because they ensure that software meets user needs and can adapt to changes over time.",
+          "explanation": "This answer is correct because it identifies the key attributes outlined in the document and explains their significance in delivering effective software solutions.",
+          "topic": "Attributes of good software",
+          "difficulty": "hard"
         },
         {
           "id": "ce2f99dc7c9d_q_6",
-          "prompt": "What does the document suggest about the relationship between software costs and hardware costs?",
-          "options": [
-            "Software costs are always lower than hardware costs",
-            "Software costs can dominate hardware costs",
-            "Hardware costs are more predictable than software costs",
-            "There is no relationship between software and hardware costs"
-          ],
-          "answer_index": 1,
-          "explanation": "The document states that software costs often dominate computer system costs, indicating a significant relationship.",
-          "topic": "Software costs",
-          "difficulty": "medium"
+          "type": "short_answer",
+          "prompt": "How does the document differentiate between generic and customized software products?",
+          "sample_answer": "Generic software products are designed for a broad market and are owned by the developer, while customized software products are tailored for specific clients and their specifications are controlled by the customer.",
+          "explanation": "This answer is correct as it accurately reflects the distinctions made in the document regarding ownership and purpose of different software types.",
+          "topic": "Software products",
+          "difficulty": "easy"
         }
       ]
     },
@@ -193,7 +163,92 @@
         "Software dependability and security",
         "Inter-related components"
       ],
-      "questions": []
+      "questions": [
+        {
+          "id": "2158b2c7ee31_q_1",
+          "prompt": "What is the primary focus of systems engineering as described in the document?",
+          "options": [
+            "A) Understanding sociotechnical systems",
+            "B) Developing software applications",
+            "C) Managing human resources",
+            "D) Conducting market research"
+          ],
+          "answer_index": 0,
+          "explanation": "The document emphasizes the importance of understanding sociotechnical systems and their components, which is a core aspect of systems engineering.",
+          "topic": "Systems Engineering",
+          "difficulty": "easy"
+        },
+        {
+          "id": "2158b2c7ee31_q_2",
+          "prompt": "Which of the following best describes emergent properties in systems engineering?",
+          "options": [
+            "A) Properties that can be assessed in isolation",
+            "B) Characteristics that arise from the interactions between components",
+            "C) Features that are predetermined during system design",
+            "D) Properties that only apply to technical systems"
+          ],
+          "answer_index": 1,
+          "explanation": "Emergent properties arise from the relationships between system components and cannot be assessed in isolation, as highlighted in the document.",
+          "topic": "Emergent System Properties",
+          "difficulty": "medium"
+        },
+        {
+          "id": "2158b2c7ee31_q_3",
+          "prompt": "What is a key distinction between technical computer-based systems and sociotechnical systems?",
+          "options": [
+            "A) Technical systems include human operators",
+            "B) Sociotechnical systems integrate human, organizational, and technical elements",
+            "C) Technical systems are more complex",
+            "D) Sociotechnical systems are easier to design"
+          ],
+          "answer_index": 1,
+          "explanation": "Sociotechnical systems integrate human, organizational, and technical elements, while technical systems typically exclude human operators.",
+          "topic": "System Categories",
+          "difficulty": "easy"
+        },
+        {
+          "id": "2158b2c7ee31_q_4",
+          "prompt": "Why is interdisciplinary collaboration emphasized in the systems engineering process?",
+          "options": [
+            "A) To reduce costs",
+            "B) To enhance communication and mitigate misunderstandings",
+            "C) To speed up system development",
+            "D) To simplify the design process"
+          ],
+          "answer_index": 1,
+          "explanation": "The document stresses the need for interdisciplinary collaboration to mitigate communication barriers and misunderstandings, which are critical for successful systems engineering.",
+          "topic": "Systems Engineering Process",
+          "difficulty": "medium"
+        },
+        {
+          "id": "2158b2c7ee31_q_5",
+          "prompt": "What challenge does the document highlight regarding system evolution?",
+          "options": [
+            "A) Maintaining legacy systems and adapting to changing requirements",
+            "B) Reducing the number of system components",
+            "C) Increasing the speed of software development",
+            "D) Ensuring all systems are fully automated"
+          ],
+          "answer_index": 0,
+          "explanation": "The document discusses the challenges of maintaining legacy systems and adapting to changing requirements as significant issues in system evolution.",
+          "topic": "System Operation and Evolution",
+          "difficulty": "hard"
+        },
+        {
+          "id": "2158b2c7ee31_q_6",
+          "prompt": "How does the document suggest addressing human error in system operation?",
+          "options": [
+            "A) By eliminating human operators",
+            "B) By designing systems with multiple barriers to detect and mitigate errors",
+            "C) By increasing training for users",
+            "D) By simplifying system interfaces"
+          ],
+          "answer_index": 1,
+          "explanation": "The document advocates for designing systems with multiple barriers to detect and mitigate errors before they lead to failures, acknowledging the inevitability of human error.",
+          "topic": "Software Dependability and Security",
+          "difficulty": "medium"
+        }
+      ]
     },
     "f04338c13e7c": {
       "id": "f04338c13e7c",
@@ -771,12 +826,70 @@
         }
       ],
       "timestamp": "2026-05-04T08:19:56.132630+00:00"
+    },
+    {
+      "id": "q_bf2dacd2",
+      "question": "what is waterfall",
+      "answer": "The waterfall model is a software development process characterized by a sequential design approach, where the project is divided into distinct stages. Each stage must be completed before the next one begins, making it inflexible in responding to changing customer requirements. This model is most suitable for projects where requirements are well-understood and changes are expected to be limited during the design process. It is commonly used in large systems engineering projects, where its plan-driven nature helps coordinate work across multiple sites.\n\nThe concept of the waterfall model appears in multiple documents, specifically in documents [1], [2], and [8]. \n\nThese documents are related as they all discuss software engineering processes, including the waterfall model as one of the methodologies for software development. Document [1] provides a detailed explanation of the waterfall model's problems and appropriate contexts for its use. Document [2] mentions the waterfall model in the context of software engineering techniques and compares it with other models. Document [8] summarizes the waterfall model as part of a broader discussion on software processes.\n\nDocument [1] expands on the limitations and appropriate use cases of the waterfall model, while documents [2] and [8] provide a broader context of software engineering methodologies, including the waterfall model among other approaches.",
+      "sources": [
+        {
+          "title": "3.Software Processes(new)",
+          "doc_id": "f04338c13e7c",
+          "score": 0.8211
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "ce2f99dc7c9d",
+          "score": 0.7904
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "ce2f99dc7c9d",
+          "score": 0.7893
+        },
+        {
+          "title": "5.Requirements Engineering(new)",
+          "doc_id": "dd5e2bdba023",
+          "score": 0.7823
+        },
+        {
+          "title": "2.Systems Engineering(new)",
+          "doc_id": "2158b2c7ee31",
+          "score": 0.7762
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "ce2f99dc7c9d",
+          "score": 0.7754
+        },
+        {
+          "title": "3.Software Processes(new)",
+          "doc_id": "f04338c13e7c",
+          "score": 0.7728
+        },
+        {
+          "title": "3.Software Processes(new)",
+          "doc_id": "f04338c13e7c",
+          "score": 0.767
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "ce2f99dc7c9d",
+          "score": 0.7612
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "ce2f99dc7c9d",
+          "score": 0.761
+        }
+      ],
+      "timestamp": "2026-05-07T06:21:24.949521+00:00"
     }
   ],
   "stats": {
     "total_documents": 6,
     "total_chunks": 46,
-    "total_questions": 10
+    "total_questions": 11
   },
   "links": [],
   "study_progress": {
@@ -809,6 +922,25 @@
           "selected_index": 1,
           "correct": true,
           "timestamp": "2026-05-07T05:40:22.147700+00:00"
+        }
+      ]
+    },
+    "579686a6-ef6f-4093-8b23-1eed6b811400": {
+      "topics": {
+        "importance of software engineering": {
+          "topic": "Importance of software engineering",
+          "correct": 1,
+          "wrong": 0
+        }
+      },
+      "history": [
+        {
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "topic": "Importance of software engineering",
+          "selected_index": 0,
+          "correct": true,
+          "timestamp": "2026-05-07T08:03:29.255856+00:00"
         }
       ]
     }

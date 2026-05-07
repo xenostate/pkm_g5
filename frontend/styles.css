@@ -1187,3 +1187,23 @@ body {
         padding: 14px 18px;
     }
 }
+
+.short-answer-input {
+    display: block;
+    width: 100%;
+    min-height: 180px;
+    padding: 14px;
+    margin: 16px 0 12px 0;
+    border-radius: 10px;
+    border: 1px solid #333;
+    background: #111;
+    color: #fff;
+    font-size: 15px;
+    line-height: 1.5;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.short-answer-input::placeholder {
+    color: #888;
+}

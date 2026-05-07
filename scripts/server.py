@@ -137,6 +137,7 @@ class SearchRequest(BaseModel):
 
 class QuestionGenerateRequest(BaseModel):
     doc_id: str
+    question_type: str = "multiple_choice"
 
 
 class QuestionAnswerRequest(BaseModel):
@@ -391,7 +392,13 @@ async def generate_questions(req: QuestionGenerateRequest):
     if req.doc_id not in kb["documents"]:
         return JSONResponse({"error": "Document not found."}, status_code=404)
 
-    questions = await asyncio.to_thread(generate_document_questions, req.doc_id, kb, get_document_chunks)
+    questions = await asyncio.to_thread(
+        generate_document_questions,
+        req.doc_id,
+        kb,
+        get_document_chunks,
+        req.question_type
+    )
     return {"doc_id": req.doc_id, "questions": questions}
 
 
