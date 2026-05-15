@@ -7,6 +7,8 @@ const API = "";  // same origin
 let documents = [];
 let sessionId = sessionStorage.getItem("pkm_session") || crypto.randomUUID();
 sessionStorage.setItem("pkm_session", sessionId);
+let currentDomain = localStorage.getItem("pkm_domain") || "general";
+let domains = [];
 let questionDocuments = [];
 let activeQuestionDocId = null;
 let activeQuestion = null;
@@ -35,15 +37,120 @@ restoreKnowledgeMapView();
 // ── Init ───────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", () => {
+    initDomains();
     initRouter();
     initUpload();
     initSearch();
     initChat();
+    initChatWidget();
     initQuestions();
     initConnections();
     loadDocuments();
     loadStats();
 });
+
+async function apiFetch(path, options = {}) {
+    const headers = new Headers(options.headers || {});
+    headers.set("X-PKM-Domain", currentDomain);
+    return fetch(`${API}${path}`, { ...options, headers });
+}
+
+function initDomains() {
+    renderDomains();
+    const createInput = document.getElementById("domain-create-input");
+
+    document.getElementById("domain-select").addEventListener("change", async (event) => {
+        currentDomain = event.target.value;
+        localStorage.setItem("pkm_domain", currentDomain);
+        resetDomainScopedState();
+        await loadDomains();
+        await loadDocuments();
+        await loadStats();
+        if ((window.location.hash.slice(1) || "documents") === "questions") {
+            await loadQuestions();
+        }
+        if ((window.location.hash.slice(1) || "documents") === "connections") {
+            await renderConnections();
+        }
+    });
+
+    async function createDomainFromInput() {
+        const name = createInput.value.trim();
+        if (!name) return;
+        try {
+            const res = await apiFetch("/api/domains", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.error || "Failed to create subject.");
+                return;
+            }
+            currentDomain = data.domain.id;
+            localStorage.setItem("pkm_domain", currentDomain);
+            createInput.value = "";
+            resetDomainScopedState();
+            await loadDomains();
+            await loadDocuments();
+            await loadStats();
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        }
+    }
+
+    document.getElementById("domain-create-btn").addEventListener("click", createDomainFromInput);
+    createInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            createDomainFromInput();
+        }
+    });
+
+    loadDomains();
+}
+
+async function loadDomains() {
+    try {
+        const res = await apiFetch("/api/domains");
+        const data = await res.json();
+        domains = data.domains || [];
+        if (!domains.find(domain => domain.id === currentDomain) && domains.length) {
+            currentDomain = domains[0].id;
+            localStorage.setItem("pkm_domain", currentDomain);
+        }
+        renderDomains();
+    } catch (err) {
+        console.error("Failed to load domains:", err);
+    }
+}
+
+function renderDomains() {
+    const select = document.getElementById("domain-select");
+    const visibleDomains = domains.length
+        ? domains
+        : [{ id: currentDomain, name: formatDomainName(currentDomain) }];
+    select.innerHTML = visibleDomains.map(domain =>
+        `<option value="${escapeHtml(domain.id)}" ${domain.id === currentDomain ? "selected" : ""}>${escapeHtml(domain.name)}</option>`
+    ).join("");
+}
+
+function formatDomainName(domainId) {
+    return domainId
+        .split("-")
+        .filter(Boolean)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ") || "General";
+}
+
+function resetDomainScopedState() {
+    documents = [];
+    questionDocuments = [];
+    activeQuestionDocId = null;
+    activeQuestion = null;
+    lastQuestionResult = null;
+    knowledgeMapAutoRefreshTried = false;
+}
 
 // ── Router ─────────────────────────────────────────────────────────────────
 
@@ -143,7 +250,7 @@ async function uploadPDFs(files) {
         try {
             const form = new FormData();
             form.append("file", file);
-            const res = await fetch(`${API}/api/documents/upload-pdf`, { method: "POST", body: form });
+            const res = await apiFetch("/api/documents/upload-pdf", { method: "POST", body: form });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Upload failed");
         } catch (err) {
@@ -162,7 +269,7 @@ async function addURL() {
 
     showLoading("Fetching and indexing URL...");
     try {
-        const res = await fetch(`${API}/api/documents/add-url`, {
+        const res = await apiFetch("/api/documents/add-url", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ url }),
@@ -187,7 +294,7 @@ async function addText() {
 
     showLoading("Indexing text...");
     try {
-        const res = await fetch(`${API}/api/documents/add-text`, {
+        const res = await apiFetch("/api/documents/add-text", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ title, text }),
@@ -208,7 +315,7 @@ async function addText() {
 
 async function loadDocuments() {
     try {
-        const res = await fetch(`${API}/api/documents`);
+        const res = await apiFetch("/api/documents");
         const data = await res.json();
         documents = data.documents || [];
         renderDocuments();
@@ -254,7 +361,7 @@ async function deleteDocument(docId) {
     if (!confirm("Delete this document and all its data?")) return;
 
     try {
-        const res = await fetch(`${API}/api/documents/${docId}`, { method: "DELETE" });
+        const res = await apiFetch(`/api/documents/${docId}`, { method: "DELETE" });
         if (!res.ok) throw new Error("Delete failed");
     } catch (err) {
         alert(`Error: ${err.message}`);
@@ -267,7 +374,7 @@ async function deleteDocument(docId) {
 
 async function loadStats() {
     try {
-        const res = await fetch(`${API}/api/stats`);
+        const res = await apiFetch("/api/stats");
         const stats = await res.json();
         document.getElementById("stat-docs").textContent = stats.total_documents || 0;
         document.getElementById("stat-chunks").textContent = stats.total_chunks || 0;
@@ -313,7 +420,7 @@ async function doSearch(query) {
     if (!query) { results.classList.add("hidden"); return; }
 
     try {
-        const res = await fetch(`${API}/api/search`, {
+        const res = await apiFetch("/api/search", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ query, top_k: 8 }),
@@ -343,26 +450,54 @@ function initChat() {
     const input = document.getElementById("chat-input");
     const btn = document.getElementById("chat-send");
 
-    btn.addEventListener("click", () => sendChat());
+    btn.addEventListener("click", () => sendChat({
+        inputId: "chat-input",
+        messagesId: "chat-messages",
+    }));
     input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") sendChat();
+        if (e.key === "Enter") sendChat({
+            inputId: "chat-input",
+            messagesId: "chat-messages",
+        });
     });
 }
 
-async function sendChat() {
-    const input = document.getElementById("chat-input");
+function initChatWidget() {
+    const input = document.getElementById("chat-widget-input");
+    const btn = document.getElementById("chat-widget-send");
+    const toggle = document.getElementById("chat-widget-toggle");
+    const widget = document.getElementById("chat-widget");
+
+    btn.addEventListener("click", () => sendChat({
+        inputId: "chat-widget-input",
+        messagesId: "chat-widget-messages",
+    }));
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendChat({
+            inputId: "chat-widget-input",
+            messagesId: "chat-widget-messages",
+        });
+    });
+    toggle.addEventListener("click", () => {
+        widget.classList.toggle("open");
+        toggle.textContent = widget.classList.contains("open") ? "-" : "+";
+    });
+}
+
+async function sendChat({ inputId, messagesId }) {
+    const input = document.getElementById(inputId);
     const message = input.value.trim();
     if (!message) return;
 
     input.value = "";
-    appendChatMsg("user", message);
+    appendChatMsg(messagesId, "user", message);
 
     // Show typing indicator
-    const typingEl = appendChatMsg("assistant", "Thinking...");
+    const typingEl = appendChatMsg(messagesId, "assistant", "Thinking...");
     typingEl.style.opacity = "0.5";
 
     try {
-        const res = await fetch(`${API}/api/chat`, {
+        const res = await apiFetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message, session_id: sessionId }),
@@ -370,16 +505,16 @@ async function sendChat() {
         const data = await res.json();
 
         typingEl.remove();
-        appendChatAnswer(data);
+        appendChatAnswer(messagesId, data);
         loadStats();
     } catch (err) {
         typingEl.remove();
-        appendChatMsg("assistant", `Error: ${err.message}`);
+        appendChatMsg(messagesId, "assistant", `Error: ${err.message}`);
     }
 }
 
-function appendChatMsg(role, text) {
-    const container = document.getElementById("chat-messages");
+function appendChatMsg(messagesId, role, text) {
+    const container = document.getElementById(messagesId);
     // Remove welcome message
     const welcome = container.querySelector(".chat-welcome");
     if (welcome) welcome.remove();
@@ -392,8 +527,8 @@ function appendChatMsg(role, text) {
     return div;
 }
 
-function appendChatAnswer(data) {
-    const container = document.getElementById("chat-messages");
+function appendChatAnswer(messagesId, data) {
+    const container = document.getElementById(messagesId);
 
     const div = document.createElement("div");
     div.className = "chat-msg assistant";
@@ -467,7 +602,7 @@ function initQuestions() {
 
 async function loadQuestions() {
     try {
-        const res = await fetch(`${API}/api/questions`);
+        const res = await apiFetch("/api/questions");
         const data = await res.json();
         questionDocuments = data.documents || [];
         renderQuestionDocList();
@@ -674,7 +809,7 @@ async function generateQuestionsForActiveDoc() {
 
     showLoading("Generating study questions...");
     try {
-        const res = await fetch(`${API}/api/questions/generate`, {
+        const res = await apiFetch("/api/questions/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -695,7 +830,7 @@ async function generateQuestionsForActiveDoc() {
 
 async function submitQuestionAnswer(docId, questionId, selectedIndex) {
     try {
-        const res = await fetch(`${API}/api/questions/answer`, {
+        const res = await apiFetch("/api/questions/answer", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -717,7 +852,7 @@ async function submitQuestionAnswer(docId, questionId, selectedIndex) {
 
 async function loadAdaptiveQuestion() {
     try {
-        const res = await fetch(`${API}/api/questions/next`, {
+        const res = await apiFetch("/api/questions/next", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ session_id: sessionId, doc_id: activeQuestionDocId }),
@@ -751,7 +886,7 @@ function initConnections() {
     document.getElementById("refresh-connections-btn").addEventListener("click", async () => {
         showLoading("Computing knowledge connections...");
         try {
-            const res = await fetch(`${API}/api/connections/refresh`, { method: "POST" });
+            const res = await apiFetch("/api/connections/refresh", { method: "POST" });
             if (!res.ok) throw new Error("Refresh failed");
             const data = await res.json();
             await loadDocuments();
@@ -856,8 +991,8 @@ async function renderConnections() {
     let knowledgeBase = { documents: {}, links: [] };
     try {
         const [connectionsRes, kbRes] = await Promise.all([
-            fetch(`${API}/api/connections`),
-            fetch(`${API}/api/knowledge-base`),
+            apiFetch("/api/connections"),
+            apiFetch("/api/knowledge-base"),
         ]);
         const connectionsData = await connectionsRes.json();
         const kbData = await kbRes.json();
@@ -882,7 +1017,7 @@ async function renderConnections() {
     if (needsAutoRefresh) {
         knowledgeMapAutoRefreshTried = true;
         try {
-            await fetch(`${API}/api/connections/refresh`, { method: "POST" });
+            await apiFetch("/api/connections/refresh", { method: "POST" });
             await loadDocuments();
             return renderConnections();
         } catch (err) {

@@ -24,19 +24,16 @@ Start:
 """
 
 import asyncio
-import datetime
 import logging
 import threading
 import time
 from pathlib import Path
-from datetime import datetime
 
 from dotenv import load_dotenv
-from sympy import content
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -46,10 +43,13 @@ from scripts.indexer import get_model, get_chroma_collection, ingest_pdf, ingest
 from scripts.retriever import retrieve
 from scripts.rag import (
     load_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
-    answer_question, save_kb, summarize_document, extract_concepts, generate_document_questions,
+    answer_question, summarize_document, extract_concepts, generate_document_questions,
     get_questions_by_document, pick_next_question, record_question_result,
     refresh_missing_concepts, refresh_all_connections,
-    get_openai_client, RAG_MODEL, _safe_json_value,_kb_lock,
+)
+from scripts.domain_context import (
+    ensure_domain, get_current_domain, list_domains, migrate_legacy_data_to_general,
+    set_current_domain, reset_current_domain,
 )
 
 # ── Config ──────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ log = logging.getLogger("pkm-server")
 # ── Globals ─────────────────────────────────────────────────────────────────
 
 embed_model = None
-kb = None
+kb_cache: dict[str, dict] = {}
 start_time = 0.0
 
 # Session history for conversation context
@@ -73,33 +73,36 @@ SESSION_HISTORY_LIMIT = 5
 
 def _sync_knowledge_map():
     """Keep persisted knowledge-map data up to date after document changes."""
-    global kb
+    domain = get_current_domain()
+    kb = _get_domain_kb(domain)
     refresh_missing_concepts(kb, get_document_chunks)
-    kb = refresh_all_connections(kb, embed_model, describe_with_llm=False)
+    kb_cache[domain] = refresh_all_connections(kb, embed_model, describe_with_llm=False)
+
+
+def _get_domain_kb(domain: str | None = None) -> dict:
+    current = domain or get_current_domain()
+    if current not in kb_cache:
+        kb_cache[current] = load_kb()
+    return kb_cache[current]
 
 
 # ── Lifespan ────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global embed_model, kb, start_time
+    global embed_model, start_time
     start_time = time.time()
 
     log.info("Loading embedding model...")
     embed_model = get_model()
     log.info("Embedding model ready.")
 
-    log.info("Initializing ChromaDB...")
-    get_chroma_collection()
-    log.info("ChromaDB ready.")
+    if migrate_legacy_data_to_general():
+        log.info("Migrated legacy workspace into General domain.")
 
-    log.info("Loading knowledge base...")
-    kb = load_kb()
-    log.info(f"Knowledge base loaded: {kb['stats']['total_documents']} documents, {kb['stats']['total_questions']} Q&A entries.")
-    if kb["documents"]:
-        log.info("Syncing persisted knowledge map data...")
-        await asyncio.to_thread(_sync_knowledge_map)
-        log.info("Knowledge map sync complete.")
+    ensure_domain("General")
+    default_kb = _get_domain_kb("general")
+    log.info(f"Default domain loaded: {default_kb['stats']['total_documents']} documents, {default_kb['stats']['total_questions']} Q&A entries.")
 
     yield
 
@@ -116,6 +119,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def domain_middleware(request: Request, call_next):
+    domain = request.headers.get("X-PKM-Domain") or request.query_params.get("domain") or "general"
+    ensure_domain(domain)
+    token = set_current_domain(domain)
+    try:
+        response = await call_next(request)
+    finally:
+        reset_current_domain(token)
+    return response
 
 
 # ── Request models ──────────────────────────────────────────────────────────
@@ -137,6 +152,10 @@ class UrlRequest(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 10
+
+
+class DomainCreateRequest(BaseModel):
+    name: str
 
 
 class QuestionGenerateRequest(BaseModel):
@@ -177,15 +196,27 @@ async def health():
         "status": "ok",
         "model_loaded": embed_model is not None,
         "documents": doc_count,
+        "domain": get_current_domain(),
         "uptime_seconds": round(time.time() - start_time),
     }
+
+
+@app.get("/api/domains")
+async def get_domains():
+    return {"domains": list_domains(), "current_domain": get_current_domain()}
+
+
+@app.post("/api/domains")
+async def create_domain(req: DomainCreateRequest):
+    domain = ensure_domain(req.name)
+    return {"domain": domain}
 
 
 # ── Routes: Document Management ─────────────────────────────────────────────
 
 @app.post("/api/documents/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
-    global kb
+    kb = _get_domain_kb()
     if not file.filename.lower().endswith(".pdf"):
         return JSONResponse({"error": "Only PDF files are accepted."}, status_code=400)
 
@@ -234,7 +265,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 @app.post("/api/documents/add-url")
 async def add_url(req: UrlRequest):
-    global kb
+    kb = _get_domain_kb()
     try:
         result = await asyncio.to_thread(ingest_url, req.url, embed_model)
     except (ValueError, Exception) as e:
@@ -275,7 +306,7 @@ async def add_url(req: UrlRequest):
 
 @app.post("/api/documents/add-text")
 async def add_text(req: TextRequest):
-    global kb
+    kb = _get_domain_kb()
     try:
         result = await asyncio.to_thread(ingest_text, req.text, req.title, embed_model)
     except ValueError as e:
@@ -316,7 +347,7 @@ async def add_text(req: TextRequest):
 
 @app.get("/api/documents")
 async def get_documents():
-    global kb
+    kb = _get_domain_kb()
     docs = []
     for doc_id, doc in kb["documents"].items():
         docs.append({
@@ -334,7 +365,7 @@ async def get_documents():
 
 @app.get("/api/documents/{doc_id}")
 async def get_document(doc_id: str):
-    global kb
+    kb = _get_domain_kb()
     doc = kb["documents"].get(doc_id)
     if not doc:
         return JSONResponse({"error": "Document not found."}, status_code=404)
@@ -343,7 +374,7 @@ async def get_document(doc_id: str):
 
 @app.delete("/api/documents/{doc_id}")
 async def remove_document(doc_id: str):
-    global kb
+    kb = _get_domain_kb()
     if doc_id not in kb["documents"]:
         return JSONResponse({"error": "Document not found."}, status_code=404)
 
@@ -359,7 +390,7 @@ async def remove_document(doc_id: str):
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
-    global kb
+    kb = _get_domain_kb()
 
     # Get/update session history
     with _session_lock:
@@ -387,19 +418,19 @@ async def chat(req: ChatRequest):
 
 @app.get("/api/chat/history")
 async def chat_history():
-    global kb
+    kb = _get_domain_kb()
     return {"history": kb.get("qa_history", [])}
 
 
 @app.get("/api/questions")
 async def get_questions():
-    global kb
+    kb = _get_domain_kb()
     return {"documents": get_questions_by_document(kb)}
 
 
 @app.post("/api/questions/generate")
 async def generate_questions(req: QuestionGenerateRequest):
-    global kb
+    kb = _get_domain_kb()
     if req.doc_id not in kb["documents"]:
         return JSONResponse({"error": "Document not found."}, status_code=404)
 
@@ -415,7 +446,7 @@ async def generate_questions(req: QuestionGenerateRequest):
 
 @app.post("/api/questions/answer")
 async def answer_question_card(req: QuestionAnswerRequest):
-    global kb
+    kb = _get_domain_kb()
     try:
         result = await asyncio.to_thread(
             record_question_result,
@@ -544,7 +575,7 @@ async def get_answer_history(session_id: str = "default"):
 
 @app.post("/api/questions/next")
 async def next_question(req: QuestionNextRequest):
-    global kb
+    kb = _get_domain_kb()
     question = await asyncio.to_thread(pick_next_question, kb, req.session_id, req.doc_id)
     return {"question": question}
 
@@ -561,7 +592,7 @@ async def search(req: SearchRequest):
 
 @app.get("/api/connections")
 async def get_connections():
-    global kb
+    kb = _get_domain_kb()
     all_connections = []
     for doc_id, doc in kb["documents"].items():
         for conn in doc.get("connections", []):
@@ -578,9 +609,10 @@ async def get_connections():
 
 @app.post("/api/connections/refresh")
 async def refresh_connections():
-    global kb
+    kb = _get_domain_kb()
     concept_updates = await asyncio.to_thread(refresh_missing_concepts, kb, get_document_chunks)
-    kb = await asyncio.to_thread(refresh_all_connections, kb, embed_model, True)
+    refreshed = await asyncio.to_thread(refresh_all_connections, kb, embed_model, True)
+    kb_cache[get_current_domain()] = refreshed
     return {"status": "refreshed", "document_count": len(kb["documents"]), "concepts_backfilled": concept_updates}
 
 
@@ -588,13 +620,12 @@ async def refresh_connections():
 
 @app.get("/api/knowledge-base")
 async def get_knowledge_base():
-    global kb
-    return kb
+    return _get_domain_kb()
 
 
 @app.get("/api/stats")
 async def get_stats():
-    global kb
+    kb = _get_domain_kb()
     return kb.get("stats", {})
 
 

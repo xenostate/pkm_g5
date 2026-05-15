@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from openai import OpenAI
+from scripts.domain_context import domain_data_dir
 from scripts.retriever import retrieve
 from scripts.indexer import get_chroma_collection, get_model
 
@@ -23,8 +24,10 @@ RAG_MODEL = os.environ.get("RAG_MODEL", "gpt-4o-mini")
 TOP_K = int(os.environ.get("RAG_TOP_K", "10"))
 LLM_CONTEXT_CHUNKS = int(os.environ.get("RAG_CONTEXT_CHUNKS", "8"))
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-KB_PATH = DATA_DIR / "knowledge_base.json"
+def _kb_path() -> Path:
+    data_dir = domain_data_dir()
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir / "knowledge_base.json"
 
 # ── OpenAI client ──────────────────────────────────────────────────────────
 
@@ -59,9 +62,9 @@ def _empty_kb() -> dict:
 
 def load_kb() -> dict:
     """Load knowledge base from disk."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    if KB_PATH.exists():
-        with open(KB_PATH, "r", encoding="utf-8") as f:
+    kb_path = _kb_path()
+    if kb_path.exists():
+        with open(kb_path, "r", encoding="utf-8") as f:
             kb = json.load(f)
             kb.setdefault("documents", {})
             kb.setdefault("qa_history", [])
@@ -82,8 +85,8 @@ def load_kb() -> dict:
 
 def save_kb(kb: dict):
     """Save knowledge base to disk."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    with open(KB_PATH, "w", encoding="utf-8") as f:
+    kb_path = _kb_path()
+    with open(kb_path, "w", encoding="utf-8") as f:
         json.dump(kb, f, indent=2, ensure_ascii=False)
 
 

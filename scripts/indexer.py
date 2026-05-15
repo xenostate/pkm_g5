@@ -18,15 +18,13 @@ import chromadb
 import requests
 from bs4 import BeautifulSoup, Comment
 from sentence_transformers import SentenceTransformer
+from scripts.domain_context import domain_data_dir, get_current_domain
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
 EMBED_MODEL = os.environ.get("EMBED_MODEL", "intfloat/multilingual-e5-base")
 CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE", "500"))
 CHUNK_OVERLAP = int(os.environ.get("CHUNK_OVERLAP", "50"))
-
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-CHROMA_DIR = DATA_DIR / "chroma_db"
 
 # ── Embedding model (lazy-loaded) ──────────────────────────────────────────
 
@@ -43,20 +41,21 @@ def get_model():
 
 # ── ChromaDB ───────────────────────────────────────────────────────────────
 
-_chroma_client = None
-_chroma_collection = None
+_chroma_clients = {}
+_chroma_collections = {}
 
 
 def get_chroma_collection():
-    global _chroma_client, _chroma_collection
-    if _chroma_collection is None:
-        CHROMA_DIR.mkdir(parents=True, exist_ok=True)
-        _chroma_client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-        _chroma_collection = _chroma_client.get_or_create_collection(
+    domain = get_current_domain()
+    if domain not in _chroma_collections:
+        chroma_dir = domain_data_dir() / "chroma_db"
+        chroma_dir.mkdir(parents=True, exist_ok=True)
+        _chroma_clients[domain] = chromadb.PersistentClient(path=str(chroma_dir))
+        _chroma_collections[domain] = _chroma_clients[domain].get_or_create_collection(
             name="pkm_chunks",
             metadata={"hnsw:space": "cosine"},
         )
-    return _chroma_collection
+    return _chroma_collections[domain]
 
 
 # ── HTML cleaning ──────────────────────────────────────────────────────────

@@ -42,6 +42,11 @@
         <main class="main">
             <!-- Search bar -->
             <div class="search-bar">
+                <div class="domain-switcher">
+                    <select id="domain-select"></select>
+                    <input type="text" id="domain-create-input" placeholder="New subject name">
+                    <button id="domain-create-btn" class="btn btn-secondary" type="button">Create</button>
+                </div>
                 <input type="text" id="search-input" placeholder="Search your knowledge base..." autocomplete="off">
                 <button id="search-btn" class="btn btn-primary">Search</button>
             </div>
@@ -196,6 +201,27 @@
     <div id="loading-overlay" class="loading-overlay hidden">
         <div class="spinner"></div>
         <p id="loading-text">Processing...</p>
+    </div>
+
+    <div id="chat-widget" class="chat-widget open">
+        <div class="chat-widget-header">
+            <div>
+                <strong>Quick Chat</strong>
+                <span class="chat-widget-sub">Same knowledge assistant</span>
+            </div>
+            <button id="chat-widget-toggle" class="chat-widget-toggle" type="button">-</button>
+        </div>
+        <div id="chat-widget-body" class="chat-widget-body">
+            <div class="chat-widget-messages" id="chat-widget-messages">
+                <div class="chat-welcome chat-widget-welcome">
+                    <p>Ask anything without leaving the page.</p>
+                </div>
+            </div>
+            <div class="chat-widget-input-area">
+                <input type="text" id="chat-widget-input" placeholder="Ask a question...">
+                <button id="chat-widget-send" class="btn btn-primary" type="button">Send</button>
+            </div>
+        </div>
     </div>
 
     <script src="/static/app.js"></script>
