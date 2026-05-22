@@ -167,6 +167,7 @@ function initRouter() {
 
         if (navItem) navItem.classList.add("active");
         if (pageEl) pageEl.classList.add("active");
+        updateChatWidgetVisibility(page);
 
         if (page === "connections") renderConnections();
         if (page === "summaries") renderSummaries();
@@ -482,6 +483,14 @@ function initChatWidget() {
         widget.classList.toggle("open");
         toggle.textContent = widget.classList.contains("open") ? "-" : "+";
     });
+
+    updateChatWidgetVisibility(window.location.hash.slice(1) || "documents");
+}
+
+function updateChatWidgetVisibility(page) {
+    const widget = document.getElementById("chat-widget");
+    if (!widget) return;
+    widget.classList.toggle("hidden", page === "chat");
 }
 
 async function sendChat({ inputId, messagesId }) {
