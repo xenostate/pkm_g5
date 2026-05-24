@@ -27,10 +27,14 @@ import asyncio
 import logging
 import threading
 import time
-from pathlib import Path
+import os
+import json
 
+from threading import Lock
+from datetime import datetime
+from pathlib import Path
+from openai import OpenAI
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, Request
@@ -51,6 +55,7 @@ from scripts.domain_context import (
     ensure_domain, get_current_domain, list_domains, migrate_legacy_data_to_general,
     set_current_domain, reset_current_domain,
 )
+
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
@@ -109,10 +114,34 @@ async def lifespan(app: FastAPI):
     log.info("Shutting down PKM server.")
 
 
+# ── kb data ─────────────────────────────────────────────────────────────────────
+
+KB_PATH = "data/knowledge_base.json"
+_kb_lock = Lock()
+def save_kb(kb_data):
+    with open(KB_PATH, "w", encoding="utf-8") as f:
+        json.dump(kb_data, f, ensure_ascii=False, indent=2)
+
+
 # ── App ─────────────────────────────────────────────────────────────────────
 
 app = FastAPI(title="PKM Server", lifespan=lifespan)
 
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+RAG_MODEL = os.getenv("RAG_MODEL", "gpt-4.1-mini")
+
+
+def _safe_json_value(content):
+    try:
+        return json.loads(content)
+    except Exception:
+        return {
+            "score": 0,
+            "feedback": content,
+            "mastery": 0.0
+        }
+    
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -465,7 +494,7 @@ async def answer_question_card(req: QuestionAnswerRequest):
 @app.post("/api/questions/short-answer")
 async def answer_short_question(req: ShortAnswerRequest):
     global kb
-
+    kb = load_kb()
     doc = kb["documents"].get(req.doc_id)
     if not doc:
         return JSONResponse({"error": "Document not found."}, status_code=404)
@@ -502,7 +531,7 @@ Return JSON only in this format:
 }}
 """
 
-    client = get_openai_client()
+    client = OpenAI()
 
     resp = client.chat.completions.create(
         model=RAG_MODEL,
@@ -545,6 +574,7 @@ Return JSON only in this format:
 @app.get("/api/questions/history")
 async def get_answer_history(session_id: str = "default"):
     global kb
+    kb = load_kb()
 
     short_history = (
         kb.get("question_sessions", {})

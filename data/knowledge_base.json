@@ -61,92 +61,56 @@
       "questions": [
         {
           "id": "ce2f99dc7c9d_q_1",
-          "type": "multiple_choice",
-          "prompt": "What is the primary focus of software engineering as outlined in the document?",
-          "options": [
-            "Developing hardware systems",
-            "Creating reliable and cost-effective software systems",
-            "Marketing software products",
-            "Managing software sales"
-          ],
-          "answer_index": 1,
-          "explanation": "The document emphasizes that software engineering is essential for developing reliable and cost-effective software systems.",
+          "type": "short_answer",
+          "prompt": "Why is it important for software engineers to understand different software engineering techniques for various types of applications?",
+          "sample_answer": "Understanding different SE techniques allows software engineers to tailor their approaches to the specific needs and complexities of each application type, ensuring that the software is efficient, maintainable, and meets user requirements.",
+          "explanation": "This answer is correct because it highlights the necessity of adapting methodologies to fit the unique characteristics of different software systems, which is crucial for effective software development.",
           "topic": "Importance of software engineering",
-          "difficulty": "easy"
-        },
-        {
-          "id": "ce2f99dc7c9d_q_2",
-          "type": "multiple_choice",
-          "prompt": "Which of the following is NOT mentioned as an attribute of good software?",
-          "options": [
-            "Maintainability",
-            "Dependability",
-            "Scalability",
-            "Efficiency"
-          ],
-          "answer_index": 2,
-          "explanation": "Scalability is not listed among the fundamental attributes of good software in the document.",
-          "topic": "Attributes of good software",
           "difficulty": "medium"
         },
         {
-          "id": "ce2f99dc7c9d_q_3",
-          "type": "multiple_choice",
-          "prompt": "According to the document, what often exceeds development costs in software projects?",
-          "options": [
-            "Initial development costs",
-            "Hardware costs",
-            "Maintenance costs",
-            "Marketing costs"
-          ],
-          "answer_index": 2,
-          "explanation": "The document states that maintenance costs often exceed development costs, especially for long-lived systems.",
+          "id": "ce2f99dc7c9d_q_2",
+          "type": "short_answer",
+          "prompt": "Discuss the implications of software maintenance costs exceeding development costs in long-lived systems.",
+          "sample_answer": "When maintenance costs exceed development costs, it implies that ongoing support and updates are critical for the longevity and functionality of the software, which can lead to significant budget considerations and the need for effective maintenance strategies.",
+          "explanation": "This answer is correct as it addresses the financial and operational challenges that arise from high maintenance costs, emphasizing the importance of planning for long-term software sustainability.",
           "topic": "Software costs",
+          "difficulty": "hard"
+        },
+        {
+          "id": "ce2f99dc7c9d_q_3",
+          "type": "short_answer",
+          "prompt": "How do ethical considerations in software engineering impact the profession and its practitioners?",
+          "sample_answer": "Ethical considerations ensure that software engineers prioritize user safety, data privacy, and fairness in their work, which helps maintain public trust and the integrity of the profession.",
+          "explanation": "This answer is correct because it connects ethical practices to the broader implications for the profession, emphasizing the importance of trust and responsibility in software development.",
+          "topic": "Ethical and professional issues in software engineering",
           "difficulty": "medium"
         },
         {
           "id": "ce2f99dc7c9d_q_4",
-          "type": "multiple_choice",
-          "prompt": "What is a key ethical consideration for software engineers as discussed in the document?",
-          "options": [
-            "Maximizing profit",
-            "Adhering to the ACM/IEEE Code of Ethics",
-            "Minimizing development time",
-            "Focusing solely on technical skills"
-          ],
-          "answer_index": 1,
-          "explanation": "The document emphasizes the importance of adhering to ethical standards, particularly the ACM/IEEE Code of Ethics, in software engineering.",
-          "topic": "Ethical issues in software engineering",
-          "difficulty": "hard"
-        },
-        {
-          "id": "ce2f99dc7c9d_q_5",
-          "type": "multiple_choice",
-          "prompt": "Which software development model is characterized by a linear sequential flow?",
-          "options": [
-            "Iterative Model",
-            "Waterfall Model",
-            "Component-based Model",
-            "Agile Model"
-          ],
-          "answer_index": 1,
-          "explanation": "The Waterfall Model is known for its linear sequential flow, where each phase must be completed before the next begins.",
-          "topic": "Models of software development",
+          "type": "short_answer",
+          "prompt": "Explain the significance of case studies in understanding software engineering principles.",
+          "sample_answer": "Case studies provide real-world examples that illustrate how theoretical concepts are applied in practice, helping students and practitioners grasp the complexities and challenges of software engineering.",
+          "explanation": "This answer is correct as it emphasizes the practical application of theory through case studies, which enhances learning and understanding of software engineering principles.",
+          "topic": "Case studies in software engineering",
           "difficulty": "easy"
         },
         {
+          "id": "ce2f99dc7c9d_q_5",
+          "type": "short_answer",
+          "prompt": "What are the key differences between generic and customized software products, and why do they matter?",
+          "sample_answer": "Generic software products are designed for a broad audience and sold to any customer, while customized products are tailored to meet specific client needs. This distinction matters because it affects the development process, cost, and user satisfaction.",
+          "explanation": "This answer is correct because it accurately describes the differences and their implications on software development and user experience, highlighting the importance of understanding these concepts in software engineering.",
+          "topic": "Software Products",
+          "difficulty": "medium"
+        },
+        {
           "id": "ce2f99dc7c9d_q_6",
-          "type": "multiple_choice",
-          "prompt": "What is the significance of case studies in the context of software engineering as per the document?",
-          "options": [
-            "They provide theoretical knowledge only",
-            "They illustrate practical applications of software engineering principles",
-            "They focus on marketing strategies",
-            "They are used for hardware development"
-          ],
-          "answer_index": 1,
-          "explanation": "Case studies serve to contextualize theoretical concepts and demonstrate their application in critical systems that impact health and safety.",
-          "topic": "Case studies in software engineering",
+          "type": "short_answer",
+          "prompt": "In what ways does the economic dependence of developed nations on software influence software engineering practices?",
+          "sample_answer": "The economic dependence on software drives the demand for high-quality, reliable software, leading to the adoption of systematic methodologies and best practices in software engineering to ensure efficiency and effectiveness.",
+          "explanation": "This answer is correct because it connects the economic context to the need for improved software engineering practices, illustrating how economic factors can shape the methodologies used in the field.",
+          "topic": "Economic dependence on software",
           "difficulty": "hard"
         }
       ]
@@ -1231,6 +1195,14 @@
           "score": 90,
           "feedback": "The student provides a comprehensive understanding of the role of ethical considerations in software engineering, mentioning key aspects such as user privacy, security, and responsible development. However, the answer could be improved by explicitly mentioning the integrity of software systems as part of the ethical considerations.",
           "timestamp": "2026-05-07T23:07:30.453886"
+        },
+        {
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "Why is it important for software engineers to understand different software engineering techniques for various types of applications?",
+          "user_answer": "Understanding different software engineering techniques is important because different types of applications have different requirements, constraints, and goals. By knowing various techniques, software engineers can choose the most effective approach for developing reliable, efficient, maintainable, and cost-effective software. It also helps them handle complexity, improve software quality, and adapt to changes in technology or user needs.",
+          "score": 90,
+          "feedback": "The student's answer effectively captures the importance of understanding different software engineering techniques by highlighting the need to address varying requirements, constraints, and goals of different application types. It also mentions key aspects such as reliability, efficiency, maintainability, cost-effectiveness, handling complexity, improving quality, and adaptability. However, the response could be improved by explicitly stating that tailoring approaches ensures the software meets user requirements, which is a critical part of the expected answer.",
+          "timestamp": "2026-05-24T22:23:19.561251"
         }
       ]
     }

@@ -62,65 +62,20 @@
         {
           "id": "ce2f99dc7c9d_q_1",
           "type": "multiple_choice",
-          "prompt": "What is the primary focus of software engineering as outlined in the document?",
+          "prompt": "What is a primary focus of software engineering as highlighted in the document?",
           "options": [
-            "Developing hardware systems",
-            "Creating reliable and cost-effective software systems",
-            "Marketing software products",
-            "Managing software sales"
+            "Cost-effective software development",
+            "Hardware optimization",
+            "User interface design",
+            "Network security"
           ],
-          "answer_index": 1,
-          "explanation": "The document emphasizes that software engineering is essential for developing reliable and cost-effective software systems.",
+          "answer_index": 0,
+          "explanation": "The document emphasizes the importance of developing software that is both reliable and cost-effective, making cost-effective software development a primary focus.",
           "topic": "Importance of software engineering",
           "difficulty": "easy"
         },
         {
           "id": "ce2f99dc7c9d_q_2",
-          "type": "multiple_choice",
-          "prompt": "Which of the following is NOT mentioned as an attribute of good software?",
-          "options": [
-            "Maintainability",
-            "Dependability",
-            "Scalability",
-            "Efficiency"
-          ],
-          "answer_index": 2,
-          "explanation": "Scalability is not listed among the fundamental attributes of good software in the document.",
-          "topic": "Attributes of good software",
-          "difficulty": "medium"
-        },
-        {
-          "id": "ce2f99dc7c9d_q_3",
-          "type": "multiple_choice",
-          "prompt": "According to the document, what often exceeds development costs in software projects?",
-          "options": [
-            "Initial development costs",
-            "Hardware costs",
-            "Maintenance costs",
-            "Marketing costs"
-          ],
-          "answer_index": 2,
-          "explanation": "The document states that maintenance costs often exceed development costs, especially for long-lived systems.",
-          "topic": "Software costs",
-          "difficulty": "medium"
-        },
-        {
-          "id": "ce2f99dc7c9d_q_4",
-          "type": "multiple_choice",
-          "prompt": "What is a key ethical consideration for software engineers as discussed in the document?",
-          "options": [
-            "Maximizing profit",
-            "Adhering to the ACM/IEEE Code of Ethics",
-            "Minimizing development time",
-            "Focusing solely on technical skills"
-          ],
-          "answer_index": 1,
-          "explanation": "The document emphasizes the importance of adhering to ethical standards, particularly the ACM/IEEE Code of Ethics, in software engineering.",
-          "topic": "Ethical issues in software engineering",
-          "difficulty": "hard"
-        },
-        {
-          "id": "ce2f99dc7c9d_q_5",
           "type": "multiple_choice",
           "prompt": "Which software development model is characterized by a linear sequential flow?",
           "options": [
@@ -132,22 +87,67 @@
           "answer_index": 1,
           "explanation": "The Waterfall Model is known for its linear sequential flow, where each phase must be completed before the next begins.",
           "topic": "Models of software development",
+          "difficulty": "medium"
+        },
+        {
+          "id": "ce2f99dc7c9d_q_3",
+          "type": "multiple_choice",
+          "prompt": "According to the document, what often exceeds development costs in software projects?",
+          "options": [
+            "Initial investment",
+            "Hardware costs",
+            "Maintenance costs",
+            "Licensing fees"
+          ],
+          "answer_index": 2,
+          "explanation": "The document states that maintenance costs for software often exceed the initial development costs, especially for long-lifetime systems.",
+          "topic": "Software costs",
+          "difficulty": "medium"
+        },
+        {
+          "id": "ce2f99dc7c9d_q_4",
+          "type": "multiple_choice",
+          "prompt": "What ethical framework is mentioned as important for software engineers?",
+          "options": [
+            "ISO 9001",
+            "ACM/IEEE Code of Ethics",
+            "Six Sigma",
+            "Agile Manifesto"
+          ],
+          "answer_index": 1,
+          "explanation": "The ACM/IEEE Code of Ethics is specifically mentioned in the document as a guideline for ethical standards that software engineers should adhere to.",
+          "topic": "Ethical and professional issues in software engineering",
+          "difficulty": "hard"
+        },
+        {
+          "id": "ce2f99dc7c9d_q_5",
+          "type": "multiple_choice",
+          "prompt": "What is a key attribute of good software as outlined in the document?",
+          "options": [
+            "High cost",
+            "Complexity",
+            "Maintainability",
+            "Proprietary nature"
+          ],
+          "answer_index": 2,
+          "explanation": "The document highlights maintainability as one of the fundamental attributes of good software, alongside dependability, efficiency, and acceptability.",
+          "topic": "Fundamental attributes of good software",
           "difficulty": "easy"
         },
         {
           "id": "ce2f99dc7c9d_q_6",
           "type": "multiple_choice",
-          "prompt": "What is the significance of case studies in the context of software engineering as per the document?",
+          "prompt": "What type of software is specifically tailored to meet the needs of a particular customer?",
           "options": [
-            "They provide theoretical knowledge only",
-            "They illustrate practical applications of software engineering principles",
-            "They focus on marketing strategies",
-            "They are used for hardware development"
+            "Generic products",
+            "Open-source software",
+            "Customized products",
+            "Commercial off-the-shelf software"
           ],
-          "answer_index": 1,
-          "explanation": "Case studies serve to contextualize theoretical concepts and demonstrate their application in critical systems that impact health and safety.",
-          "topic": "Case studies in software engineering",
-          "difficulty": "hard"
+          "answer_index": 2,
+          "explanation": "Customized products are developed specifically for a particular customer to meet their unique requirements, as described in the document.",
+          "topic": "Software Products",
+          "difficulty": "medium"
         }
       ]
     },
@@ -474,7 +474,98 @@
         "Detailed mathematical functional specifications",
         "Operational constraints"
       ],
-      "questions": []
+      "questions": [
+        {
+          "id": "dd5e2bdba023_q_1",
+          "type": "multiple_choice",
+          "prompt": "What is the primary purpose of requirements engineering?",
+          "options": [
+            "To establish the services required by the customer and the constraints under which they operate",
+            "To create a marketing strategy for the software",
+            "To develop user interfaces",
+            "To manage project timelines"
+          ],
+          "answer_index": 0,
+          "explanation": "Requirements engineering focuses on defining what the customer needs from a system and the constraints that must be considered during development.",
+          "topic": "Requirements Engineering",
+          "difficulty": "easy"
+        },
+        {
+          "id": "dd5e2bdba023_q_2",
+          "type": "multiple_choice",
+          "prompt": "Which of the following best describes functional requirements?",
+          "options": [
+            "They specify how the system should perform under certain conditions",
+            "They describe the operational constraints of the system",
+            "They outline the services the system should provide",
+            "They are always written in technical jargon"
+          ],
+          "answer_index": 2,
+          "explanation": "Functional requirements specifically outline the services that the system should provide and how it should behave in various situations.",
+          "topic": "Functional and Non-Functional Requirements",
+          "difficulty": "medium"
+        },
+        {
+          "id": "dd5e2bdba023_q_3",
+          "type": "multiple_choice",
+          "prompt": "What distinguishes user requirements from system requirements?",
+          "options": [
+            "User requirements are more detailed and structured",
+            "System requirements are expressed in natural language",
+            "User requirements are written for customers, while system requirements are detailed descriptions for developers",
+            "System requirements are always less important than user requirements"
+          ],
+          "answer_index": 2,
+          "explanation": "User requirements are typically expressed in natural language for customers, while system requirements are detailed and structured for developers.",
+          "topic": "User and System Requirements",
+          "difficulty": "medium"
+        },
+        {
+          "id": "dd5e2bdba023_q_4",
+          "type": "multiple_choice",
+          "prompt": "Why is requirements management necessary in software development?",
+          "options": [
+            "To ensure that all stakeholders are satisfied",
+            "To adapt to changes in business and technical environments",
+            "To eliminate the need for documentation",
+            "To speed up the development process"
+          ],
+          "answer_index": 1,
+          "explanation": "Requirements management is essential to adapt to changes in business and technical environments, ensuring that the software remains aligned with user expectations and organizational goals.",
+          "topic": "Requirements Management",
+          "difficulty": "hard"
+        },
+        {
+          "id": "dd5e2bdba023_q_5",
+          "type": "multiple_choice",
+          "prompt": "What is a common challenge faced during requirements elicitation?",
+          "options": [
+            "Conflicting stakeholder interests",
+            "Lack of technical knowledge",
+            "Overly detailed specifications",
+            "Insufficient funding"
+          ],
+          "answer_index": 0,
+          "explanation": "Conflicting stakeholder interests can complicate the requirements elicitation process, making it difficult to gather clear and consistent requirements.",
+          "topic": "Requirements Elicitation",
+          "difficulty": "medium"
+        },
+        {
+          "id": "dd5e2bdba023_q_6",
+          "type": "multiple_choice",
+          "prompt": "Which of the following statements about non-functional requirements is true?",
+          "options": [
+            "They specify what the system should do",
+            "They impose constraints on how the system operates",
+            "They are less important than functional requirements",
+            "They are always measurable"
+          ],
+          "answer_index": 1,
+          "explanation": "Non-functional requirements impose constraints on how the system operates, such as performance, reliability, and usability.",
+          "topic": "Functional and Non-Functional Requirements",
+          "difficulty": "easy"
+        }
+      ]
     },
     "b3a3c3038349": {
       "id": "b3a3c3038349",
@@ -1170,7 +1261,7 @@
       "topics": {
         "importance of software engineering": {
           "topic": "Importance of software engineering",
-          "correct": 1,
+          "correct": 2,
           "wrong": 0
         }
       },
@@ -1189,6 +1280,21 @@
           "explanation": "The document emphasizes that software engineering is essential for developing reliable and cost-effective software systems.",
           "mastery": 1.0,
           "timestamp": "2026-05-07T14:21:51.231344+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "What is a primary focus of software engineering as highlighted in the document?",
+          "topic": "Importance of software engineering",
+          "selected_index": 0,
+          "selected_answer": "Cost-effective software development",
+          "correct_index": 0,
+          "correct_answer": "Cost-effective software development",
+          "correct": true,
+          "explanation": "The document emphasizes the importance of developing software that is both reliable and cost-effective, making cost-effective software development a primary focus.",
+          "mastery": 1.0,
+          "timestamp": "2026-05-24T13:23:57.643272+00:00"
         }
       ]
     }
