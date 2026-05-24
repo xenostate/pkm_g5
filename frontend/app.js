@@ -481,7 +481,7 @@ function initChatWidget() {
     });
     toggle.addEventListener("click", () => {
         widget.classList.toggle("open");
-        toggle.textContent = widget.classList.contains("open") ? "-" : "+";
+        toggle.textContent = widget.classList.contains("open") ? "-" : "QC";
     });
 
     updateChatWidgetVisibility(window.location.hash.slice(1) || "documents");
@@ -1571,7 +1571,7 @@ function escapeHtml(str) {
 // ── Answer History ────────────────────────────────────────────────────────
 async function loadAnswerHistory() {
     try {
-        const res = await fetch(`${API}/api/questions/history?session_id=default`);
+        const res = await apiFetch(`/api/questions/history?session_id=default`);
         const data = await res.json();
 
         renderAnswerHistory(data.history || []);

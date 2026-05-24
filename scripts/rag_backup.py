@@ -609,31 +609,11 @@ def generate_document_questions(doc_id: str, kb: dict, get_chunks_fn, question_t
     concepts = doc.get("concepts", [])
     chunks = get_chunks_fn(doc_id)
     excerpt = "\n\n".join(chunks[:3])[:3500]
-    
-    #- progress와 weak_topics(정답률 50% 미만)을 추가했습니다 - 김동윤
-    progress = kb.get("study_progress", {}).get("default", {}).get("topics", {})
-    if progress:
-        sorted_topics = sorted(
-            progress.items(),
-            key=lambda x: x[1]["correct"] / max(x[1]["correct"] + x[1]["wrong"], 1)
-        )
-        weak_topics = [
-            topic for topic, stats in sorted_topics
-            if stats["correct"] / max(stats["correct"] + stats["wrong"], 1) < 0.5
-        ][:3]
-    else:
-        weak_topics = []
-
-    weak_hint = (
-        f"\nThe student is struggling with these topics: {', '.join(weak_topics)}."
-        f"\nGenerate at least 3 questions focused on these weak topics."
-        if weak_topics else ""
-    )
 
     if question_type == "short_answer":
         prompt = f"""
 Create 6 short-answer study questions for one document.
-{weak_hint} 
+
 Return JSON only in this shape:
 [
   {{
@@ -661,7 +641,7 @@ Excerpt:
     else:
         prompt = f"""
 Create 6 multiple-choice study questions for one document.
-{weak_hint}
+
 Return JSON only in this shape:
 [
   {{

@@ -46,7 +46,7 @@ from pydantic import BaseModel
 from scripts.indexer import get_model, get_chroma_collection, ingest_pdf, ingest_url, ingest_text, delete_document, list_documents, get_document_chunks
 from scripts.retriever import retrieve
 from scripts.rag import (
-    load_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
+    load_kb, save_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
     answer_question, summarize_document, extract_concepts, generate_document_questions,
     get_questions_by_document, pick_next_question, record_question_result,
     refresh_missing_concepts, refresh_all_connections,
@@ -116,12 +116,7 @@ async def lifespan(app: FastAPI):
 
 # ── kb data ─────────────────────────────────────────────────────────────────────
 
-KB_PATH = "data/knowledge_base.json"
 _kb_lock = Lock()
-def save_kb(kb_data):
-    with open(KB_PATH, "w", encoding="utf-8") as f:
-        json.dump(kb_data, f, ensure_ascii=False, indent=2)
-
 
 # ── App ─────────────────────────────────────────────────────────────────────
 
@@ -494,7 +489,7 @@ async def answer_question_card(req: QuestionAnswerRequest):
 @app.post("/api/questions/short-answer")
 async def answer_short_question(req: ShortAnswerRequest):
     global kb
-    kb = load_kb()
+    kb = _get_domain_kb()
     doc = kb["documents"].get(req.doc_id)
     if not doc:
         return JSONResponse({"error": "Document not found."}, status_code=404)
@@ -574,7 +569,7 @@ Return JSON only in this format:
 @app.get("/api/questions/history")
 async def get_answer_history(session_id: str = "default"):
     global kb
-    kb = load_kb()
+    kb = _get_domain_kb()
 
     short_history = (
         kb.get("question_sessions", {})
@@ -589,6 +584,16 @@ async def get_answer_history(session_id: str = "default"):
     )
 
     history = short_history + multiple_history
+
+    latest_by_question = {}
+
+    for item in history:
+        qid = item.get("question_id")
+        if not qid:
+            continue
+        latest_by_question[qid] = item
+
+    history = list(latest_by_question.values())
 
     history.sort(
         key=lambda item: item.get("timestamp", ""),

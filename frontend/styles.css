@@ -1231,6 +1231,34 @@ body {
     }
 }
 
+.chat-widget:not(.open) {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+}
+
+.chat-widget:not(.open) .chat-widget-header {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chat-widget:not(.open) strong,
+.chat-widget:not(.open) .chat-widget-sub {
+    display: none;
+}
+
+.chat-widget-toggle {
+    display: flex;
+    align-items: center; 
+    border: none;
+    
+}
+
 /* ── Loading Overlay ────────────────────────────────────────────────────── */
 
 .loading-overlay {

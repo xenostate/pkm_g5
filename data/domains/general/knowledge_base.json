@@ -14,36 +14,37 @@
           "doc_id": "dd5e2bdba023",
           "title": "5.Requirements Engineering(new)",
           "similarity": 0.9616,
-          "description": "Both documents by Prof. Eunseok Lee focus on essential aspects of software engineering, with the first providing a broad overview of the field and the second delving into the specific area of requirements engineering as a critical component of software development."
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9616)"
         },
         {
           "doc_id": "2158b2c7ee31",
           "title": "2.Systems Engineering(new)",
           "similarity": 0.9596,
-          "description": "Both documents by Prof. Eunseok Lee focus on engineering disciplines, with the first addressing software engineering and its methodologies, while the second explores systems engineering and its principles, highlighting their interconnectedness in developing reliable and effective systems."
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9596)"
         },
         {
           "doc_id": "f04338c13e7c",
           "title": "3.Software Processes(new)",
           "similarity": 0.9568,
-          "description": "Both documents by Prof. Eunseok Lee focus on foundational aspects of software engineering, with the first providing an overview of the field and its importance, while the second delves into specific software development processes and methodologies."
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9568)"
         },
         {
           "doc_id": "7df1df31a7b9",
           "title": "8.Architectural Design(new)",
           "similarity": 0.949,
-          "description": "Both documents by Prof. Eunseok Lee focus on essential aspects of software engineering, with the first providing a broad overview of the field and the second delving into the specific area of architectural design within software systems."
+          "description": "Related to 8.Architectural Design(new) (similarity: 0.949)"
         },
         {
           "doc_id": "b3a3c3038349",
           "title": "6.System Modeling(new)",
           "similarity": 0.9466,
-          "description": "Both documents by Prof. Eunseok Lee focus on software engineering, with the first providing an overview of its significance and methodologies, while the second delves into specific modeling techniques and tools used within the field."
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9466)"
         },
         {
           "doc_id": "1d4d07c2ff07",
           "title": "4.Agile Software Development(new)",
-          "similarity": 0.9433
+          "similarity": 0.9433,
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9433)"
         }
       ],
       "concepts": [
@@ -62,92 +63,92 @@
         {
           "id": "ce2f99dc7c9d_q_1",
           "type": "multiple_choice",
-          "prompt": "What is a primary focus of software engineering as highlighted in the document?",
+          "prompt": "Which of the following is NOT considered an attribute of good software?",
           "options": [
-            "Cost-effective software development",
-            "Hardware optimization",
-            "User interface design",
-            "Network security"
+            "Maintainability",
+            "Dependability",
+            "Efficiency",
+            "Complexity"
           ],
-          "answer_index": 0,
-          "explanation": "The document emphasizes the importance of developing software that is both reliable and cost-effective, making cost-effective software development a primary focus.",
-          "topic": "Importance of software engineering",
+          "answer_index": 3,
+          "explanation": "Complexity is not an attribute of good software; rather, good software should aim for simplicity and ease of use.",
+          "topic": "attributes of good software",
           "difficulty": "easy"
         },
         {
           "id": "ce2f99dc7c9d_q_2",
           "type": "multiple_choice",
-          "prompt": "Which software development model is characterized by a linear sequential flow?",
+          "prompt": "Why is maintainability an important attribute of good software?",
           "options": [
-            "Iterative Model",
-            "Waterfall Model",
-            "Component-based Model",
-            "Agile Model"
+            "It ensures the software is user-friendly.",
+            "It allows for easy updates and modifications.",
+            "It guarantees high performance.",
+            "It reduces the initial development cost."
           ],
           "answer_index": 1,
-          "explanation": "The Waterfall Model is known for its linear sequential flow, where each phase must be completed before the next begins.",
-          "topic": "Models of software development",
+          "explanation": "Maintainability is crucial because it allows software to be easily updated and modified over time, which is essential for long-term usability.",
+          "topic": "attributes of good software",
           "difficulty": "medium"
         },
         {
           "id": "ce2f99dc7c9d_q_3",
           "type": "multiple_choice",
-          "prompt": "According to the document, what often exceeds development costs in software projects?",
+          "prompt": "Which attribute of good software focuses on the software's ability to perform under expected conditions?",
           "options": [
-            "Initial investment",
-            "Hardware costs",
-            "Maintenance costs",
-            "Licensing fees"
+            "Efficiency",
+            "Dependability",
+            "Maintainability",
+            "Acceptability"
           ],
-          "answer_index": 2,
-          "explanation": "The document states that maintenance costs for software often exceed the initial development costs, especially for long-lifetime systems.",
-          "topic": "Software costs",
+          "answer_index": 1,
+          "explanation": "Dependability refers to the software's ability to perform reliably under expected conditions, making it a critical attribute for good software.",
+          "topic": "attributes of good software",
           "difficulty": "medium"
         },
         {
           "id": "ce2f99dc7c9d_q_4",
           "type": "multiple_choice",
-          "prompt": "What ethical framework is mentioned as important for software engineers?",
+          "prompt": "What is the primary reason that software maintenance costs often exceed development costs?",
           "options": [
-            "ISO 9001",
-            "ACM/IEEE Code of Ethics",
-            "Six Sigma",
-            "Agile Manifesto"
+            "Software is too complex to maintain.",
+            "Software requirements frequently change.",
+            "Developers are not trained for maintenance.",
+            "Maintenance tools are inadequate."
           ],
           "answer_index": 1,
-          "explanation": "The ACM/IEEE Code of Ethics is specifically mentioned in the document as a guideline for ethical standards that software engineers should adhere to.",
-          "topic": "Ethical and professional issues in software engineering",
+          "explanation": "Software requirements frequently change over time, leading to higher maintenance costs as updates and modifications are needed.",
+          "topic": "software costs",
           "difficulty": "hard"
         },
         {
           "id": "ce2f99dc7c9d_q_5",
           "type": "multiple_choice",
-          "prompt": "What is a key attribute of good software as outlined in the document?",
+          "prompt": "In the context of software engineering, what does 'acceptability' refer to?",
           "options": [
-            "High cost",
-            "Complexity",
-            "Maintainability",
-            "Proprietary nature"
+            "The software's ability to be maintained easily.",
+            "The software's performance under load.",
+            "The user's satisfaction with the software.",
+            "The software's compliance with regulations."
           ],
           "answer_index": 2,
-          "explanation": "The document highlights maintainability as one of the fundamental attributes of good software, alongside dependability, efficiency, and acceptability.",
-          "topic": "Fundamental attributes of good software",
+          "explanation": "Acceptability refers to the user's satisfaction with the software, which is essential for its success and adoption.",
+          "topic": "attributes of good software",
           "difficulty": "easy"
         },
         {
           "id": "ce2f99dc7c9d_q_6",
           "type": "multiple_choice",
-          "prompt": "What type of software is specifically tailored to meet the needs of a particular customer?",
+          "prompt": "Which of the following attributes is most closely related to the efficiency of software?",
           "options": [
-            "Generic products",
-            "Open-source software",
-            "Customized products",
-            "Commercial off-the-shelf software"
+            "Dependability",
+            "Maintainability",
+            "Performance",
+            "Usability"
           ],
           "answer_index": 2,
-          "explanation": "Customized products are developed specifically for a particular customer to meet their unique requirements, as described in the document.",
-          "topic": "Software Products",
-          "difficulty": "medium"
+          "explanation": "Performance is directly related to efficiency, as it measures how well the software utilizes resources to deliver the required functionality.",
+          "topic": "attributes of good software",
+          "difficulty": "hard"
         }
       ]
     },
@@ -165,36 +166,37 @@
           "doc_id": "ce2f99dc7c9d",
           "title": "1.Introduction to SE(new)",
           "similarity": 0.9596,
-          "description": "Both documents by Prof. Eunseok Lee focus on engineering disciplines, with the first detailing systems engineering principles and processes, while the second provides an overview of software engineering, emphasizing its methodologies and significance in developing reliable systems."
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.9596)"
         },
         {
           "doc_id": "dd5e2bdba023",
           "title": "5.Requirements Engineering(new)",
           "similarity": 0.9594,
-          "description": "Both documents by Prof. Eunseok Lee focus on essential engineering disciplines—systems engineering and requirements engineering—highlighting their interconnected roles in developing effective and user-centered software systems."
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9594)"
         },
         {
           "doc_id": "f04338c13e7c",
           "title": "3.Software Processes(new)",
           "similarity": 0.9551,
-          "description": "Both documents by Prof. Eunseok Lee focus on the structured methodologies and principles necessary for developing complex systems, with one emphasizing systems engineering and the other concentrating on software development processes."
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9551)"
         },
         {
           "doc_id": "7df1df31a7b9",
           "title": "8.Architectural Design(new)",
           "similarity": 0.9511,
-          "description": "Both documents by Prof. Eunseok Lee focus on the principles and processes of designing complex systems, with one emphasizing systems engineering and the other concentrating on software architectural design."
+          "description": "Related to 8.Architectural Design(new) (similarity: 0.9511)"
         },
         {
           "doc_id": "b3a3c3038349",
           "title": "6.System Modeling(new)",
           "similarity": 0.9492,
-          "description": "Both documents by Prof. Eunseok Lee focus on key aspects of systems engineering, with the first addressing the overarching principles and processes, while the second delves into specific methodologies for modeling software systems within that framework."
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9492)"
         },
         {
           "doc_id": "1d4d07c2ff07",
           "title": "4.Agile Software Development(new)",
-          "similarity": 0.9326
+          "similarity": 0.9326,
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9326)"
         }
       ],
       "concepts": [
@@ -310,36 +312,37 @@
           "doc_id": "1d4d07c2ff07",
           "title": "4.Agile Software Development(new)",
           "similarity": 0.9593,
-          "description": "Both documents by Eunseok Lee explore software development methodologies, with the first focusing on structured software processes and the second on agile methodologies, highlighting their principles and practices."
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9593)"
         },
         {
           "doc_id": "ce2f99dc7c9d",
           "title": "1.Introduction to SE(new)",
           "similarity": 0.9568,
-          "description": "Both documents by Eunseok Lee focus on foundational aspects of software development, with one detailing specific software processes and the other providing a broader overview of software engineering principles and methodologies."
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.9568)"
         },
         {
           "doc_id": "dd5e2bdba023",
           "title": "5.Requirements Engineering(new)",
           "similarity": 0.9563,
-          "description": "Both documents by Eunseok Lee focus on essential aspects of software development, with \"Software Processes\" detailing the structured activities involved in creating software systems, while \"Requirements Engineering\" emphasizes the importance of understanding and managing user and system requirements within those processes."
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9563)"
         },
         {
           "doc_id": "2158b2c7ee31",
           "title": "2.Systems Engineering(new)",
           "similarity": 0.9551,
-          "description": "Both documents by Eunseok Lee focus on structured processes in their respective fields—software development and systems engineering—highlighting the importance of adapting methodologies to meet evolving requirements and ensuring the successful development of complex systems."
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9551)"
         },
         {
           "doc_id": "b3a3c3038349",
           "title": "6.System Modeling(new)",
           "similarity": 0.9478,
-          "description": "Both documents by Eunseok Lee focus on essential aspects of software development, with \"Software Processes\" detailing the structured activities involved in creating software systems, while \"System Modeling\" emphasizes the methodologies and graphical representations used to model those systems effectively."
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9478)"
         },
         {
           "doc_id": "7df1df31a7b9",
           "title": "8.Architectural Design(new)",
-          "similarity": 0.9437
+          "similarity": 0.9437,
+          "description": "Related to 8.Architectural Design(new) (similarity: 0.9437)"
         }
       ],
       "concepts": [
@@ -370,36 +373,37 @@
           "doc_id": "f04338c13e7c",
           "title": "3.Software Processes(new)",
           "similarity": 0.9593,
-          "description": "Both documents by Eunseok Lee explore methodologies in software development, with Document 1 focusing specifically on agile practices and their challenges, while Document 2 addresses broader software processes and models, highlighting the need for adaptability in development."
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9593)"
         },
         {
           "doc_id": "ce2f99dc7c9d",
           "title": "1.Introduction to SE(new)",
           "similarity": 0.9433,
-          "description": "Both documents by Eunseok Lee focus on software development, with the first specifically addressing agile methodologies within that context, while the second provides a broader overview of software engineering principles and practices."
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.9433)"
         },
         {
           "doc_id": "dd5e2bdba023",
           "title": "5.Requirements Engineering(new)",
           "similarity": 0.9341,
-          "description": "Both documents by Eunseok Lee focus on essential aspects of software development, with one detailing agile methodologies and the other addressing requirements engineering, highlighting their interconnectedness in creating effective software solutions."
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9341)"
         },
         {
           "doc_id": "2158b2c7ee31",
           "title": "2.Systems Engineering(new)",
           "similarity": 0.9326,
-          "description": "Both documents by Eunseok Lee explore methodologies in their respective fields—agile software development and systems engineering—highlighting principles, practices, and challenges in managing complex projects."
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9326)"
         },
         {
           "doc_id": "b3a3c3038349",
           "title": "6.System Modeling(new)",
           "similarity": 0.9297,
-          "description": "Both documents by Eunseok Lee focus on methodologies in software development, with one detailing agile practices and principles while the other addresses system modeling techniques and the use of UML in representing software systems."
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9297)"
         },
         {
           "doc_id": "7df1df31a7b9",
           "title": "8.Architectural Design(new)",
-          "similarity": 0.9256
+          "similarity": 0.9256,
+          "description": "Related to 8.Architectural Design(new) (similarity: 0.9256)"
         }
       ],
       "concepts": [
@@ -430,36 +434,37 @@
           "doc_id": "ce2f99dc7c9d",
           "title": "1.Introduction to SE(new)",
           "similarity": 0.9616,
-          "description": "Both documents by Prof. Eunseok Lee focus on essential aspects of software development, with \"Requirements Engineering\" delving into the specific processes of gathering and managing requirements, while \"Introduction to SE(new)\" provides a broader overview of software engineering principles and methodologies."
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.9616)"
         },
         {
           "doc_id": "2158b2c7ee31",
           "title": "2.Systems Engineering(new)",
           "similarity": 0.9594,
-          "description": "Both documents by Prof. Eunseok Lee focus on essential engineering disciplines—requirements engineering and systems engineering—highlighting their methodologies and processes for effectively developing software and systems that meet user needs and operational constraints."
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9594)"
         },
         {
           "doc_id": "f04338c13e7c",
           "title": "3.Software Processes(new)",
           "similarity": 0.9563,
-          "description": "Both documents by Prof. Eunseok Lee focus on essential aspects of software development, with \"Requirements Engineering\" addressing the identification and management of user needs, while \"Software Processes\" emphasizes the structured activities and adaptability required in the software development lifecycle."
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9563)"
         },
         {
           "doc_id": "b3a3c3038349",
           "title": "6.System Modeling(new)",
           "similarity": 0.9446,
-          "description": "Both documents by Prof. Eunseok Lee focus on essential methodologies in software development, with \"Requirements Engineering\" addressing the identification and management of user needs, while \"System Modeling\" emphasizes the representation and design of software systems through graphical models."
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9446)"
         },
         {
           "doc_id": "7df1df31a7b9",
           "title": "8.Architectural Design(new)",
           "similarity": 0.9381,
-          "description": "Both documents by Prof. Eunseok Lee focus on essential aspects of software development, with \"Requirements Engineering\" addressing the identification and management of user needs and system requirements, while \"Architectural Design\" deals with the organization and structural decisions necessary to implement those requirements effectively in software systems."
+          "description": "Related to 8.Architectural Design(new) (similarity: 0.9381)"
         },
         {
           "doc_id": "1d4d07c2ff07",
           "title": "4.Agile Software Development(new)",
-          "similarity": 0.9341
+          "similarity": 0.9341,
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9341)"
         }
       ],
       "concepts": [
@@ -581,36 +586,37 @@
           "doc_id": "7df1df31a7b9",
           "title": "8.Architectural Design(new)",
           "similarity": 0.9531,
-          "description": "Both documents by Eunseok Lee focus on essential aspects of software development, with \"System Modeling\" addressing the representation and methodologies for modeling software systems, while \"Architectural Design\" delves into the organization and decision-making processes involved in structuring those systems."
+          "description": "Related to 8.Architectural Design(new) (similarity: 0.9531)"
         },
         {
           "doc_id": "2158b2c7ee31",
           "title": "2.Systems Engineering(new)",
           "similarity": 0.9492,
-          "description": "Both documents by Eunseok Lee focus on the methodologies and principles of modeling and engineering systems, with Document 1 emphasizing software system modeling through graphical representations and UML, while Document 2 addresses broader systems engineering principles, including sociotechnical systems and the overall development process."
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9492)"
         },
         {
           "doc_id": "f04338c13e7c",
           "title": "3.Software Processes(new)",
           "similarity": 0.9478,
-          "description": "Both documents by Eunseok Lee focus on essential aspects of software development, with \"System Modeling\" emphasizing the representation and methodologies for modeling software systems, while \"Software Processes\" outlines the structured activities and adaptability required in the software development lifecycle."
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9478)"
         },
         {
           "doc_id": "ce2f99dc7c9d",
           "title": "1.Introduction to SE(new)",
           "similarity": 0.9466,
-          "description": "Both documents by Eunseok Lee focus on software engineering, with Document 1 specifically addressing system modeling techniques and methodologies, while Document 2 provides a broader overview of software engineering principles and practices."
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.9466)"
         },
         {
           "doc_id": "dd5e2bdba023",
           "title": "5.Requirements Engineering(new)",
           "similarity": 0.9446,
-          "description": "Both documents by Eunseok Lee focus on essential aspects of software development, with \"System Modeling\" addressing the representation and structure of software systems through modeling techniques, while \"Requirements Engineering\" emphasizes the identification and management of user and system requirements necessary for effective software design."
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9446)"
         },
         {
           "doc_id": "1d4d07c2ff07",
           "title": "4.Agile Software Development(new)",
-          "similarity": 0.9297
+          "similarity": 0.9297,
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9297)"
         }
       ],
       "concepts": [
@@ -625,7 +631,98 @@
         "Clarification of existing system functionality",
         "Discussion of design proposals with stakeholders"
       ],
-      "questions": []
+      "questions": [
+        {
+          "id": "b3a3c3038349_q_1",
+          "type": "multiple_choice",
+          "prompt": "What is the primary purpose of system modeling?",
+          "options": [
+            "To develop abstract models of a system",
+            "To create executable code directly",
+            "To eliminate the need for requirements engineering",
+            "To focus solely on user interface design"
+          ],
+          "answer_index": 0,
+          "explanation": "The primary purpose of system modeling is to develop abstract models of a system, providing different views and perspectives that aid in understanding and communication.",
+          "topic": "System Modeling Overview",
+          "difficulty": "easy"
+        },
+        {
+          "id": "b3a3c3038349_q_2",
+          "type": "multiple_choice",
+          "prompt": "Which of the following UML diagram types focuses on the interactions between a system and its environment?",
+          "options": [
+            "Activity diagrams",
+            "Use case diagrams",
+            "Class diagrams",
+            "Sequence diagrams"
+          ],
+          "answer_index": 1,
+          "explanation": "Use case diagrams specifically illustrate the interactions between a system and its environment, making them essential for understanding user requirements.",
+          "topic": "UML Diagram Types",
+          "difficulty": "medium"
+        },
+        {
+          "id": "b3a3c3038349_q_3",
+          "type": "multiple_choice",
+          "prompt": "What does model-driven engineering (MDE) prioritize in the software development process?",
+          "options": [
+            "Documentation over models",
+            "Models over traditional programming outputs",
+            "User interface design",
+            "Manual coding practices"
+          ],
+          "answer_index": 1,
+          "explanation": "Model-driven engineering prioritizes models over traditional programming outputs, allowing for automation and higher abstraction levels in software engineering.",
+          "topic": "Model-Driven Engineering",
+          "difficulty": "medium"
+        },
+        {
+          "id": "b3a3c3038349_q_4",
+          "type": "multiple_choice",
+          "prompt": "What is the role of context models in system modeling?",
+          "options": [
+            "To depict the dynamic behavior of a system",
+            "To illustrate the operational environment of a system",
+            "To show the organization of a system",
+            "To represent user interactions only"
+          ],
+          "answer_index": 1,
+          "explanation": "Context models illustrate the operational environment of a system, providing necessary background for understanding how the system will function.",
+          "topic": "Context Models",
+          "difficulty": "easy"
+        },
+        {
+          "id": "b3a3c3038349_q_5",
+          "type": "multiple_choice",
+          "prompt": "Which of the following statements about behavioral models is true?",
+          "options": [
+            "They focus solely on the data structure of the system.",
+            "They represent the dynamic behavior of a system in response to stimuli.",
+            "They are used only for documentation purposes.",
+            "They do not require any graphical representation."
+          ],
+          "answer_index": 1,
+          "explanation": "Behavioral models represent the dynamic behavior of a system in response to stimuli, capturing how the system reacts to various events.",
+          "topic": "Behavioral Models",
+          "difficulty": "hard"
+        },
+        {
+          "id": "b3a3c3038349_q_6",
+          "type": "multiple_choice",
+          "prompt": "What is a key advantage of using graphical models in system modeling?",
+          "options": [
+            "They eliminate the need for stakeholder discussions.",
+            "They provide a complete representation of the system.",
+            "They facilitate discussions about existing or proposed systems.",
+            "They are always accurate and complete."
+          ],
+          "answer_index": 2,
+          "explanation": "Graphical models facilitate discussions about existing or proposed systems, allowing stakeholders to visualize and communicate ideas effectively, even if the models are incomplete or incorrect.",
+          "topic": "Graphical Models",
+          "difficulty": "medium"
+        }
+      ]
     },
     "7df1df31a7b9": {
       "id": "7df1df31a7b9",
@@ -653,36 +750,37 @@
           "doc_id": "b3a3c3038349",
           "title": "6.System Modeling(new)",
           "similarity": 0.9531,
-          "description": "Both documents by Eunseok Lee focus on essential aspects of software development, with \"Architectural Design\" addressing the organization and structure of software systems, while \"System Modeling\" emphasizes the representation and visualization of those systems through various modeling techniques."
+          "description": "Related to 6.System Modeling(new) (similarity: 0.9531)"
         },
         {
           "doc_id": "2158b2c7ee31",
           "title": "2.Systems Engineering(new)",
           "similarity": 0.9511,
-          "description": "Both documents by Eunseok Lee focus on design principles, with \"Architectural Design\" concentrating on software architecture and \"Systems Engineering\" addressing broader systems engineering concepts, highlighting the interconnectedness of technical and sociotechnical systems."
+          "description": "Related to 2.Systems Engineering(new) (similarity: 0.9511)"
         },
         {
           "doc_id": "ce2f99dc7c9d",
           "title": "1.Introduction to SE(new)",
           "similarity": 0.949,
-          "description": "Both documents, authored by Eunseok Lee, focus on key aspects of software development, with the first detailing architectural design as a crucial component of software engineering, while the second provides a broader overview of software engineering principles and practices."
+          "description": "Related to 1.Introduction to SE(new) (similarity: 0.949)"
         },
         {
           "doc_id": "f04338c13e7c",
           "title": "3.Software Processes(new)",
           "similarity": 0.9437,
-          "description": "Both documents by Eunseok Lee focus on essential aspects of software development, with \"Architectural Design\" concentrating on the organization and decision-making in software architecture, while \"Software Processes\" addresses the structured activities and models involved in the overall software development lifecycle."
+          "description": "Related to 3.Software Processes(new) (similarity: 0.9437)"
         },
         {
           "doc_id": "dd5e2bdba023",
           "title": "5.Requirements Engineering(new)",
           "similarity": 0.9381,
-          "description": "Both documents by Eunseok Lee focus on essential aspects of software development, with \"Architectural Design\" addressing the organization and structure of software systems, while \"Requirements Engineering\" emphasizes understanding and managing user and system requirements."
+          "description": "Related to 5.Requirements Engineering(new) (similarity: 0.9381)"
         },
         {
           "doc_id": "1d4d07c2ff07",
           "title": "4.Agile Software Development(new)",
-          "similarity": 0.9256
+          "similarity": 0.9256,
+          "description": "Related to 4.Agile Software Development(new) (similarity: 0.9256)"
         }
       ],
       "questions": []
@@ -1261,8 +1359,18 @@
       "topics": {
         "importance of software engineering": {
           "topic": "Importance of software engineering",
-          "correct": 2,
-          "wrong": 0
+          "correct": 3,
+          "wrong": 1
+        },
+        "attributes of good software": {
+          "topic": "Attributes of good software",
+          "correct": 1,
+          "wrong": 4
+        },
+        "software costs": {
+          "topic": "software costs",
+          "correct": 4,
+          "wrong": 3
         }
       },
       "history": [
@@ -1295,6 +1403,216 @@
           "explanation": "The document emphasizes the importance of developing software that is both reliable and cost-effective, making cost-effective software development a primary focus.",
           "mastery": 1.0,
           "timestamp": "2026-05-24T13:23:57.643272+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "What is a primary focus of software engineering as highlighted in the document?",
+          "topic": "Importance of software engineering",
+          "selected_index": 0,
+          "selected_answer": "Cost-effective software development",
+          "correct_index": 0,
+          "correct_answer": "Cost-effective software development",
+          "correct": true,
+          "explanation": "The document emphasizes the importance of developing software that is both reliable and cost-effective, making cost-effective software development a primary focus.",
+          "mastery": 1.0,
+          "timestamp": "2026-05-24T13:31:40.820494+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "What is the primary focus of software engineering as described in the document?",
+          "topic": "Importance of software engineering",
+          "selected_index": 0,
+          "selected_answer": "Developing hardware systems",
+          "correct_index": 1,
+          "correct_answer": "Creating reliable and cost-effective software systems",
+          "correct": false,
+          "explanation": "The document emphasizes that software engineering is essential for developing reliable and cost-effective software systems, highlighting its critical role in modern economies.",
+          "mastery": 0.75,
+          "timestamp": "2026-05-24T14:08:47.264437+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "question_prompt": "Which of the following is NOT mentioned as a fundamental attribute of good software?",
+          "topic": "Attributes of good software",
+          "selected_index": 0,
+          "selected_answer": "Maintainability",
+          "correct_index": 2,
+          "correct_answer": "Scalability",
+          "correct": false,
+          "explanation": "The document lists maintainability, dependability, efficiency, and acceptability as fundamental attributes of good software, but does not mention scalability.",
+          "mastery": 0.0,
+          "timestamp": "2026-05-24T14:08:56.005153+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "question_prompt": "Which of the following is NOT mentioned as a fundamental attribute of good software?",
+          "topic": "Attributes of good software",
+          "selected_index": 0,
+          "selected_answer": "Maintainability",
+          "correct_index": 2,
+          "correct_answer": "Scalability",
+          "correct": false,
+          "explanation": "The document lists maintainability, dependability, efficiency, and acceptability as fundamental attributes of good software, but does not mention scalability.",
+          "mastery": 0.0,
+          "timestamp": "2026-05-24T14:08:57.901030+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "question_prompt": "Which of the following is NOT mentioned as a fundamental attribute of good software?",
+          "topic": "Attributes of good software",
+          "selected_index": 2,
+          "selected_answer": "Scalability",
+          "correct_index": 2,
+          "correct_answer": "Scalability",
+          "correct": true,
+          "explanation": "The document lists maintainability, dependability, efficiency, and acceptability as fundamental attributes of good software, but does not mention scalability.",
+          "mastery": 0.33,
+          "timestamp": "2026-05-24T14:09:15.098068+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "Which of the following is NOT considered an attribute of good software?",
+          "topic": "attributes of good software",
+          "selected_index": 0,
+          "selected_answer": "Maintainability",
+          "correct_index": 3,
+          "correct_answer": "Complexity",
+          "correct": false,
+          "explanation": "Complexity is not an attribute of good software; rather, good software should aim for simplicity and ease of use.",
+          "mastery": 0.25,
+          "timestamp": "2026-05-24T14:09:42.216839+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "question_prompt": "What is the primary reason that software maintenance costs often exceed development costs?",
+          "topic": "software costs",
+          "selected_index": 3,
+          "selected_answer": "Maintenance tools are inadequate.",
+          "correct_index": 1,
+          "correct_answer": "Software requirements frequently change.",
+          "correct": false,
+          "explanation": "Software requirements frequently change over time, leading to higher maintenance costs as updates and modifications are needed.",
+          "mastery": 0.0,
+          "timestamp": "2026-05-24T14:09:45.514451+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "question_prompt": "What is the primary reason that software maintenance costs often exceed development costs?",
+          "topic": "software costs",
+          "selected_index": 0,
+          "selected_answer": "Software is too complex to maintain.",
+          "correct_index": 1,
+          "correct_answer": "Software requirements frequently change.",
+          "correct": false,
+          "explanation": "Software requirements frequently change over time, leading to higher maintenance costs as updates and modifications are needed.",
+          "mastery": 0.0,
+          "timestamp": "2026-05-24T14:10:28.559109+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "question_prompt": "What is the primary reason that software maintenance costs often exceed development costs?",
+          "topic": "software costs",
+          "selected_index": 1,
+          "selected_answer": "Software requirements frequently change.",
+          "correct_index": 1,
+          "correct_answer": "Software requirements frequently change.",
+          "correct": true,
+          "explanation": "Software requirements frequently change over time, leading to higher maintenance costs as updates and modifications are needed.",
+          "mastery": 0.33,
+          "timestamp": "2026-05-24T14:10:30.475286+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "question_prompt": "What is the primary reason that software maintenance costs often exceed development costs?",
+          "topic": "software costs",
+          "selected_index": 1,
+          "selected_answer": "Software requirements frequently change.",
+          "correct_index": 1,
+          "correct_answer": "Software requirements frequently change.",
+          "correct": true,
+          "explanation": "Software requirements frequently change over time, leading to higher maintenance costs as updates and modifications are needed.",
+          "mastery": 0.5,
+          "timestamp": "2026-05-24T14:10:32.133301+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "question_prompt": "What is the primary reason that software maintenance costs often exceed development costs?",
+          "topic": "software costs",
+          "selected_index": 1,
+          "selected_answer": "Software requirements frequently change.",
+          "correct_index": 1,
+          "correct_answer": "Software requirements frequently change.",
+          "correct": true,
+          "explanation": "Software requirements frequently change over time, leading to higher maintenance costs as updates and modifications are needed.",
+          "mastery": 0.6,
+          "timestamp": "2026-05-24T14:10:33.830256+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "Which of the following is NOT considered an attribute of good software?",
+          "topic": "attributes of good software",
+          "selected_index": 0,
+          "selected_answer": "Maintainability",
+          "correct_index": 3,
+          "correct_answer": "Complexity",
+          "correct": false,
+          "explanation": "Complexity is not an attribute of good software; rather, good software should aim for simplicity and ease of use.",
+          "mastery": 0.2,
+          "timestamp": "2026-05-24T14:11:47.196090+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "question_prompt": "What is the primary reason that software maintenance costs often exceed development costs?",
+          "topic": "software costs",
+          "selected_index": 0,
+          "selected_answer": "Software is too complex to maintain.",
+          "correct_index": 1,
+          "correct_answer": "Software requirements frequently change.",
+          "correct": false,
+          "explanation": "Software requirements frequently change over time, leading to higher maintenance costs as updates and modifications are needed.",
+          "mastery": 0.5,
+          "timestamp": "2026-05-24T14:11:55.213751+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_4",
+          "question_prompt": "What is the primary reason that software maintenance costs often exceed development costs?",
+          "topic": "software costs",
+          "selected_index": 1,
+          "selected_answer": "Software requirements frequently change.",
+          "correct_index": 1,
+          "correct_answer": "Software requirements frequently change.",
+          "correct": true,
+          "explanation": "Software requirements frequently change over time, leading to higher maintenance costs as updates and modifications are needed.",
+          "mastery": 0.57,
+          "timestamp": "2026-05-24T14:12:05.345214+00:00"
         }
       ]
     }
