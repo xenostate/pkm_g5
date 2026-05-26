@@ -971,6 +971,14 @@ function initConnections() {
         showConnectionsTooltip(hit, event.clientX, event.clientY, tooltip);
     });
 
+    canvas.addEventListener("click", (event) => {
+        const hit = findKnowledgeMapHoverTarget(event);
+
+        if (!hit || hit.kind !== "document") return;
+
+        openSummaryFromKnowledgeMap(hit.title);
+    });
+
     const stopDragging = () => {
         knowledgeMapState.isDragging = false;
         canvas.classList.remove("dragging");
@@ -1533,7 +1541,7 @@ function showConnectionsTooltip(target, clientX, clientY, tooltip) {
     tooltip.innerHTML = `
         <div class="connections-tooltip-title">${escapeHtml(target.title)}</div>
         <div class="connections-tooltip-meta">${escapeHtml(target.meta)}</div>
-        <div class="connections-tooltip-body">${escapeHtml(target.summary)}</div>
+        <div class="connections-tooltip-body">${escapeHtml(target.summary || "").replace(/\. /g, ".<br><br>")}</div>
         ${tagHtml}
     `;
     tooltip.classList.remove("hidden");
@@ -1557,6 +1565,43 @@ function hideConnectionsTooltip() {
     const tooltip = document.getElementById("connections-tooltip");
     if (!tooltip) return;
     tooltip.classList.add("hidden");
+}
+
+function openSummaryFromKnowledgeMap(title) {
+    window.location.hash = "summaries";
+
+    setTimeout(() => {
+        const cards = document.querySelectorAll(".summary-card");
+
+        for (const card of cards) {
+            const titleEl = card.querySelector(".summary-title");
+
+            if (titleEl && titleEl.textContent.includes(title)) {
+                card.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center"
+                });
+
+                card.classList.add("summary-highlight");
+
+                setTimeout(() => {
+                    card.classList.remove("summary-highlight");
+                }, 2000);
+
+                const body = card.querySelector(".summary-body");
+                if (body) {
+                    body.classList.add("open");
+                }
+
+                const toggle = card.querySelector(".summary-toggle");
+                if (toggle) {
+                    toggle.classList.add("open");
+                }
+
+                break;
+            }
+        }
+    }, 150);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
