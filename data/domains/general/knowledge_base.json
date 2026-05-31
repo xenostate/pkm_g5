@@ -63,92 +63,92 @@
         {
           "id": "ce2f99dc7c9d_q_1",
           "type": "multiple_choice",
-          "prompt": "Which of the following is NOT considered an attribute of good software?",
+          "prompt": "Which of the following is NOT an attribute of good software?",
           "options": [
             "Maintainability",
             "Dependability",
-            "Efficiency",
-            "Complexity"
+            "Complexity",
+            "Efficiency"
           ],
-          "answer_index": 3,
-          "explanation": "Complexity is not an attribute of good software; rather, good software should aim for simplicity and ease of use.",
+          "answer_index": 2,
+          "explanation": "Complexity is not considered an attribute of good software; rather, good software should be simple and easy to understand.",
           "topic": "attributes of good software",
           "difficulty": "easy"
         },
         {
           "id": "ce2f99dc7c9d_q_2",
           "type": "multiple_choice",
-          "prompt": "Why is maintainability an important attribute of good software?",
+          "prompt": "What is the primary reason that maintenance costs often exceed development costs in software engineering?",
           "options": [
-            "It ensures the software is user-friendly.",
-            "It allows for easy updates and modifications.",
-            "It guarantees high performance.",
-            "It reduces the initial development cost."
+            "Software is easier to maintain than to develop",
+            "Software requires constant updates and bug fixes",
+            "Development costs are fixed",
+            "Maintenance is not a priority"
           ],
           "answer_index": 1,
-          "explanation": "Maintainability is crucial because it allows software to be easily updated and modified over time, which is essential for long-term usability.",
+          "explanation": "Software requires constant updates and bug fixes due to changing requirements and the discovery of new issues, leading to higher maintenance costs.",
           "topic": "attributes of good software",
           "difficulty": "medium"
         },
         {
           "id": "ce2f99dc7c9d_q_3",
           "type": "multiple_choice",
-          "prompt": "Which attribute of good software focuses on the software's ability to perform under expected conditions?",
+          "prompt": "Which attribute of good software ensures that it can be modified and updated over time without excessive cost or effort?",
           "options": [
-            "Efficiency",
             "Dependability",
+            "Efficiency",
             "Maintainability",
             "Acceptability"
           ],
-          "answer_index": 1,
-          "explanation": "Dependability refers to the software's ability to perform reliably under expected conditions, making it a critical attribute for good software.",
+          "answer_index": 2,
+          "explanation": "Maintainability refers to the ease with which software can be modified to correct faults, improve performance, or adapt to a changed environment.",
           "topic": "attributes of good software",
           "difficulty": "medium"
         },
         {
           "id": "ce2f99dc7c9d_q_4",
           "type": "multiple_choice",
-          "prompt": "What is the primary reason that software maintenance costs often exceed development costs?",
+          "prompt": "Why is dependability considered a critical attribute of good software?",
           "options": [
-            "Software is too complex to maintain.",
-            "Software requirements frequently change.",
-            "Developers are not trained for maintenance.",
-            "Maintenance tools are inadequate."
+            "It ensures the software is user-friendly",
+            "It guarantees the software will never fail",
+            "It indicates the software performs reliably under expected conditions",
+            "It reduces the need for documentation"
           ],
-          "answer_index": 1,
-          "explanation": "Software requirements frequently change over time, leading to higher maintenance costs as updates and modifications are needed.",
-          "topic": "software costs",
+          "answer_index": 2,
+          "explanation": "Dependability indicates that the software performs reliably under expected conditions, which is crucial for user trust and system integrity.",
+          "topic": "attributes of good software",
           "difficulty": "hard"
         },
         {
           "id": "ce2f99dc7c9d_q_5",
           "type": "multiple_choice",
-          "prompt": "In the context of software engineering, what does 'acceptability' refer to?",
+          "prompt": "Which of the following attributes of good software relates to how well the software meets user needs and expectations?",
           "options": [
-            "The software's ability to be maintained easily.",
-            "The software's performance under load.",
-            "The user's satisfaction with the software.",
-            "The software's compliance with regulations."
+            "Efficiency",
+            "Acceptability",
+            "Dependability",
+            "Maintainability"
           ],
-          "answer_index": 2,
-          "explanation": "Acceptability refers to the user's satisfaction with the software, which is essential for its success and adoption.",
+          "answer_index": 1,
+          "explanation": "Acceptability refers to how well the software meets user needs and expectations, making it a vital attribute for user satisfaction.",
           "topic": "attributes of good software",
-          "difficulty": "easy"
+          "difficulty": "medium"
         },
         {
           "id": "ce2f99dc7c9d_q_6",
           "type": "multiple_choice",
-          "prompt": "Which of the following attributes is most closely related to the efficiency of software?",
+          "prompt": "In the context of software engineering, what does efficiency refer to?",
           "options": [
-            "Dependability",
-            "Maintainability",
-            "Performance",
-            "Usability"
+            "The speed of software development",
+            "The resource usage of the software during operation",
+            "The complexity of the software design",
+            "The level of user satisfaction"
           ],
-          "answer_index": 2,
-          "explanation": "Performance is directly related to efficiency, as it measures how well the software utilizes resources to deliver the required functionality.",
+          "answer_index": 1,
+          "explanation": "Efficiency refers to the resource usage of the software during operation, indicating how well it utilizes system resources to perform tasks.",
           "topic": "attributes of good software",
-          "difficulty": "hard"
+          "difficulty": "easy"
         }
       ]
     },
@@ -357,7 +357,62 @@
         "Process improvement",
         "Roles and responsibilities in software processes"
       ],
-      "questions": []
+      "questions": [
+        {
+          "id": "f04338c13e7c_q_1",
+          "type": "short_answer",
+          "prompt": "What are the key attributes of a good software process, and why are they important?",
+          "sample_answer": "A good software process should be adaptable, efficient, and clear. Adaptability is important because requirements can change, and a process that can accommodate these changes will lead to better outcomes. Efficiency ensures that resources are used wisely, reducing costs and time. Clarity helps all team members understand their roles and responsibilities, which enhances collaboration and productivity.",
+          "explanation": "This answer is correct because it identifies critical attributes of a good software process and explains their significance in the context of software development. Adaptability addresses the need for processes to cope with change, efficiency relates to resource management, and clarity improves team dynamics.",
+          "topic": "attributes of good software",
+          "difficulty": "medium"
+        },
+        {
+          "id": "f04338c13e7c_q_2",
+          "type": "short_answer",
+          "prompt": "Explain how the waterfall model's structure can impact the adaptability of a software process.",
+          "sample_answer": "The waterfall model's sequential structure can hinder adaptability because each phase must be completed before moving on to the next. This inflexibility makes it challenging to incorporate changes in requirements once the project is underway, potentially leading to a product that does not meet customer needs.",
+          "explanation": "This answer is correct as it highlights the inherent limitations of the waterfall model in terms of adaptability. By explaining how the sequential nature of the model restricts changes, it demonstrates an understanding of the relationship between process structure and flexibility.",
+          "topic": "attributes of good software",
+          "difficulty": "hard"
+        },
+        {
+          "id": "f04338c13e7c_q_3",
+          "type": "short_answer",
+          "prompt": "What role does process improvement play in maintaining the quality of software processes, and what approaches can be taken?",
+          "sample_answer": "Process improvement is crucial for maintaining software quality as it allows organizations to refine their practices based on past experiences and changing requirements. Approaches such as process maturity models and agile methodologies can be employed to assess and enhance processes, ensuring they remain effective and efficient.",
+          "explanation": "This answer is correct because it connects process improvement to software quality and identifies specific approaches that can be used. It shows an understanding of how continuous improvement can lead to better outcomes in software development.",
+          "topic": "attributes of good software",
+          "difficulty": "medium"
+        },
+        {
+          "id": "f04338c13e7c_q_4",
+          "type": "short_answer",
+          "prompt": "Discuss the importance of coping with change in software processes and how it can be achieved.",
+          "sample_answer": "Coping with change is vital in software processes because customer requirements and technologies often evolve. This can be achieved through strategies like change tolerance, where processes are designed to accommodate changes, and prototyping, which allows for early validation of requirements and designs.",
+          "explanation": "This answer is correct as it emphasizes the necessity of adaptability in software processes and outlines specific strategies to manage change effectively. It reflects an understanding of the dynamic nature of software development.",
+          "topic": "coping with change",
+          "difficulty": "medium"
+        },
+        {
+          "id": "f04338c13e7c_q_5",
+          "type": "short_answer",
+          "prompt": "What are the advantages and challenges of using incremental development as a software process model?",
+          "sample_answer": "Incremental development offers advantages such as faster delivery of functional software and the ability to incorporate customer feedback throughout the development process. However, it also presents challenges like managing the integration of different increments and ensuring consistent quality across them.",
+          "explanation": "This answer is correct because it accurately identifies both the benefits and potential drawbacks of incremental development, demonstrating an understanding of how this model operates within software processes.",
+          "topic": "software process models",
+          "difficulty": "medium"
+        },
+        {
+          "id": "f04338c13e7c_q_6",
+          "type": "short_answer",
+          "prompt": "How does the concept of roles and responsibilities enhance the effectiveness of a software process?",
+          "sample_answer": "Defining roles and responsibilities enhances the effectiveness of a software process by ensuring that each team member knows their specific tasks and accountability. This clarity reduces confusion, improves communication, and fosters collaboration, leading to a more efficient development process.",
+          "explanation": "This answer is correct as it explains the significance of clearly defined roles in a software process. It highlights how this clarity contributes to overall effectiveness, which is crucial for successful software development.",
+          "topic": "roles and responsibilities in software processes",
+          "difficulty": "easy"
+        }
+      ]
     },
     "1d4d07c2ff07": {
       "id": "1d4d07c2ff07",
@@ -1257,12 +1312,70 @@
         }
       ],
       "timestamp": "2026-05-14T11:42:17.935045+00:00"
+    },
+    {
+      "id": "q_8fedbd8c",
+      "question": "폭포모델이뭐야?",
+      "answer": "I don't have enough information from your documents to answer this.",
+      "sources": [
+        {
+          "title": "6.System Modeling(new)",
+          "doc_id": "b3a3c3038349",
+          "score": 0.7465
+        },
+        {
+          "title": "6.System Modeling(new)",
+          "doc_id": "b3a3c3038349",
+          "score": 0.7416
+        },
+        {
+          "title": "5.Requirements Engineering(new)",
+          "doc_id": "dd5e2bdba023",
+          "score": 0.7407
+        },
+        {
+          "title": "8.Architectural Design(new)",
+          "doc_id": "7df1df31a7b9",
+          "score": 0.7403
+        },
+        {
+          "title": "6.System Modeling(new)",
+          "doc_id": "b3a3c3038349",
+          "score": 0.7377
+        },
+        {
+          "title": "8.Architectural Design(new)",
+          "doc_id": "7df1df31a7b9",
+          "score": 0.7355
+        },
+        {
+          "title": "6.System Modeling(new)",
+          "doc_id": "b3a3c3038349",
+          "score": 0.7328
+        },
+        {
+          "title": "6.System Modeling(new)",
+          "doc_id": "b3a3c3038349",
+          "score": 0.7292
+        },
+        {
+          "title": "1.Introduction to SE(new)",
+          "doc_id": "ce2f99dc7c9d",
+          "score": 0.7213
+        },
+        {
+          "title": "6.System Modeling(new)",
+          "doc_id": "b3a3c3038349",
+          "score": 0.7205
+        }
+      ],
+      "timestamp": "2026-05-25T15:13:20.165595+00:00"
     }
   ],
   "stats": {
     "total_documents": 7,
     "total_chunks": 53,
-    "total_questions": 12
+    "total_questions": 13
   },
   "links": [],
   "study_progress": {
@@ -1365,7 +1478,7 @@
         "attributes of good software": {
           "topic": "Attributes of good software",
           "correct": 1,
-          "wrong": 4
+          "wrong": 6
         },
         "software costs": {
           "topic": "software costs",
@@ -1613,6 +1726,36 @@
           "explanation": "Software requirements frequently change over time, leading to higher maintenance costs as updates and modifications are needed.",
           "mastery": 0.57,
           "timestamp": "2026-05-24T14:12:05.345214+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "Which of the following is NOT considered an attribute of good software?",
+          "topic": "attributes of good software",
+          "selected_index": 0,
+          "selected_answer": "Maintainability",
+          "correct_index": 3,
+          "correct_answer": "Complexity",
+          "correct": false,
+          "explanation": "Complexity is not an attribute of good software; rather, good software should aim for simplicity and ease of use.",
+          "mastery": 0.17,
+          "timestamp": "2026-05-25T10:52:01.170033+00:00"
+        },
+        {
+          "type": "multiple_choice",
+          "doc_id": "ce2f99dc7c9d",
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "Which of the following is NOT an attribute of good software?",
+          "topic": "attributes of good software",
+          "selected_index": 3,
+          "selected_answer": "Efficiency",
+          "correct_index": 2,
+          "correct_answer": "Complexity",
+          "correct": false,
+          "explanation": "Complexity is not considered an attribute of good software; instead, good software should be simple and easy to understand.",
+          "mastery": 0.14,
+          "timestamp": "2026-05-25T10:54:16.657682+00:00"
         }
       ]
     }
@@ -1655,6 +1798,22 @@
           "score": 90,
           "feedback": "The student provides a comprehensive understanding of the role of ethical considerations in software engineering, mentioning key aspects such as user privacy, security, and responsible development. However, the answer could be improved by explicitly mentioning the integrity of software systems as part of the ethical considerations.",
           "timestamp": "2026-05-07T23:07:30.453886"
+        },
+        {
+          "question_id": "ce2f99dc7c9d_q_1",
+          "question_prompt": "What are the key attributes of good software, and why is each attribute important?",
+          "user_answer": "Maintainability – The software should be easy to modify, update, and fix. This is important because requirements and technologies change over time, so software must evolve without excessive cost or effort.\nDependability and Security – The system should be reliable, safe, and secure against failures or attacks. This is important because users need to trust the software to protect data and operate correctly.\nEfficiency – The software should use system resources such as memory, processing power, and network bandwidth effectively. Efficient software provides better performance and improves the user experience.\nUsability (Acceptability) – The software should be easy to learn and use for its intended users. This is important because even technically strong software can fail if users find it difficult or inconvenient to use.",
+          "score": 95,
+          "feedback": "The student's answer correctly identifies the key attributes of good software: maintainability, dependability (expanded to include security), efficiency, and acceptability (referred to as usability). Each attribute is well explained with clear reasoning about its importance. The inclusion of security under dependability is a good enhancement, though the original expected answer did not explicitly mention it. The explanation for usability aligns well with acceptability and emphasizes user satisfaction. Overall, the response is thorough, accurate, and well-articulated, with only minor deviation from the expected terminology.",
+          "timestamp": "2026-05-25T20:02:48.554637"
+        },
+        {
+          "question_id": "f04338c13e7c_q_1",
+          "question_prompt": "What are the key attributes of a good software process, and why are they important?",
+          "user_answer": "Understandability\nThe process should be easy for developers and stakeholders to understand. This helps teams follow the process consistently and reduces confusion during development.\nVisibility\nThe progress of the project should be clearly observable through documents, reports, or milestones. Visibility helps managers and team members track progress, identify delays, and make better decisions.\nSupportability\nThe process should be supported by appropriate tools and technologies. Good tool support improves productivity, automation, collaboration, and overall development efficiency.\nAcceptability\nDevelopers and users should be willing to use the process. If a process is too complicated or unrealistic, teams may ignore it, reducing effectiveness.\nReliability\nThe process should help produce dependable and high-quality software consistently. Reliable processes reduce bugs, failures, and maintenance costs.\nRobustness\nThe process should be able to handle unexpected changes or problems, such as changing requirements or team issues. Robustness increases flexibility and project stability.\nMaintainability\nThe process should support future updates and improvements to the software. Since software often evolves over time, maintainability is essential for long-term success.\nRapidity\nThe process should allow software to be developed and delivered within a reasonable time. Faster delivery helps organizations respond quickly to user needs and market changes.",
+          "score": 85,
+          "feedback": "The student's answer provides a comprehensive list of key attributes of a good software process, including understandability, visibility, supportability, acceptability, reliability, robustness, maintainability, and rapidity. These attributes align well with important qualities of effective software processes and demonstrate a strong understanding of the topic. However, the response could be improved by explicitly linking these attributes to why they are important, as the question asks. While some explanations are given, they are brief and could be more directly connected to the benefits of adaptability, efficiency, and clarity, which were emphasized in the expected answer. Overall, the student shows good mastery of the concept but could enhance clarity and focus on the rationale behind each attribute's importance.",
+          "timestamp": "2026-05-26T00:12:37.023835"
         }
       ]
     }
