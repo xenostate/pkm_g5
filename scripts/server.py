@@ -2,23 +2,6 @@
 """
 PKM API Server — FastAPI service for Personal Knowledge Management.
 
-Endpoints:
-    GET  /                          — serve dashboard
-    POST /api/documents/upload-pdf  — upload & ingest PDF
-    POST /api/documents/add-url     — fetch & ingest URL
-    POST /api/documents/add-text    — ingest text note
-    GET  /api/documents             — list all documents
-    GET  /api/documents/{doc_id}    — document details
-    DELETE /api/documents/{doc_id}  — delete document
-    POST /api/chat                  — RAG Q&A
-    GET  /api/chat/history          — Q&A history
-    POST /api/search                — natural language search
-    GET  /api/connections           — all document connections
-    POST /api/connections/refresh   — recompute connections
-    GET  /api/knowledge-base        — full KB JSON
-    GET  /api/stats                 — stats
-    GET  /health                    — status check
-
 Start:
     uvicorn scripts.server:app --host 0.0.0.0 --port 8090
 """
@@ -29,20 +12,20 @@ import threading
 import time
 import os
 import json
-
 from threading import Lock
 from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
-
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+# 내부 모듈 임포트
 from scripts.indexer import get_model, get_chroma_collection, ingest_pdf, ingest_url, ingest_text, delete_document, list_documents, get_document_chunks
 from scripts.retriever import retrieve
 from scripts.rag import (
@@ -56,24 +39,29 @@ from scripts.domain_context import (
     set_current_domain, reset_current_domain,
 )
 
-
-# ── Config ──────────────────────────────────────────────────────────────────
+# ==============================================================================
+# [구역 1] 서버 설정, 글로벌 변수 및 헬퍼 함수
+# ==============================================================================
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("pkm-server")
 
-# ── Globals ─────────────────────────────────────────────────────────────────
-
+# 글로벌 상태 설정
 embed_model = None
 kb_cache: dict[str, dict] = {}
 start_time = 0.0
+_kb_lock = Lock()
 
-# Session history for conversation context
+# 세션 히스토리 설정
 _session_history: dict[str, list[dict]] = {}
 _session_lock = threading.Lock()
 SESSION_HISTORY_LIMIT = 5
+
+# 환경 변수 로드 및 모델 지정
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+RAG_MODEL = os.getenv("RAG_MODEL", "gpt-4.1-mini")
 
 
 def _sync_knowledge_map():
@@ -91,7 +79,20 @@ def _get_domain_kb(domain: str | None = None) -> dict:
     return kb_cache[current]
 
 
-# ── Lifespan ────────────────────────────────────────────────────────────────
+def _safe_json_value(content):
+    try:
+        return json.loads(content)
+    except Exception:
+        return {
+            "score": 0,
+            "feedback": content,
+            "mastery": 0.0
+        }
+
+
+# ==============================================================================
+# [구역 2] FastAPI 앱 초기화 및 미들웨어 / 수명 주기(Lifespan) 관리
+# ==============================================================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -114,29 +115,9 @@ async def lifespan(app: FastAPI):
     log.info("Shutting down PKM server.")
 
 
-# ── kb data ─────────────────────────────────────────────────────────────────────
-
-_kb_lock = Lock()
-
-# ── App ─────────────────────────────────────────────────────────────────────
-
 app = FastAPI(title="PKM Server", lifespan=lifespan)
 
-
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-RAG_MODEL = os.getenv("RAG_MODEL", "gpt-4.1-mini")
-
-
-def _safe_json_value(content):
-    try:
-        return json.loads(content)
-    except Exception:
-        return {
-            "score": 0,
-            "feedback": content,
-            "mastery": 0.0
-        }
-    
+# CORS 미들웨어
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -144,7 +125,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+# 도메인 컨텍스트 미들웨어
 @app.middleware("http")
 async def domain_middleware(request: Request, call_next):
     domain = request.headers.get("X-PKM-Domain") or request.query_params.get("domain") or "general"
@@ -157,7 +138,9 @@ async def domain_middleware(request: Request, call_next):
     return response
 
 
-# ── Request models ──────────────────────────────────────────────────────────
+# ==============================================================================
+# [구역 3] Pydantic 요청(Request) 데이터 모델 정의
+# ==============================================================================
 
 class ChatRequest(BaseModel):
     message: str
@@ -206,7 +189,9 @@ class QuestionNextRequest(BaseModel):
     doc_id: str | None = None
 
 
-# ── Routes: Static / Health ─────────────────────────────────────────────────
+# ==============================================================================
+# [구역 4] 기본 시스템 라우트 (메인 화면, 헬스체크, 워크스페이스/도메인 관리)
+# ==============================================================================
 
 @app.get("/")
 async def serve_dashboard():
@@ -236,7 +221,9 @@ async def create_domain(req: DomainCreateRequest):
     return {"domain": domain}
 
 
-# ── Routes: Document Management ─────────────────────────────────────────────
+# ==============================================================================
+# [구역 5] 지식 문서 관리 API (PDF, URL, 텍스트 업로드 및 삭제)
+# ==============================================================================
 
 @app.post("/api/documents/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -253,13 +240,14 @@ async def upload_pdf(file: UploadFile = File(...)):
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
-    # Auto-summarize
+    # 자동 요약 생성
     try:
         summary = await asyncio.to_thread(summarize_document, result["full_text"], result["title"])
     except Exception as e:
         log.warning(f"Summarization failed: {e}")
         summary = ""
 
+    # 핵심 개념 추출
     try:
         concepts = await asyncio.to_thread(extract_concepts, result["full_text"])
     except Exception as e:
@@ -410,13 +398,14 @@ async def remove_document(doc_id: str):
     return {"status": "deleted", "doc_id": doc_id}
 
 
-# ── Routes: Chat / Q&A ──────────────────────────────────────────────────────
+# ==============================================================================
+# [구역 6] AI 핵심 기능 API (RAG 대화, 시맨틱 검색, 퀴즈 출제 및 채점 시스템)
+# ==============================================================================
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
     kb = _get_domain_kb()
 
-    # Get/update session history
     with _session_lock:
         history = _session_history.get(req.session_id, [])
 
@@ -424,19 +413,15 @@ async def chat(req: ChatRequest):
         answer_question, req.message, history, embed_model, kb
     )
 
-    # Update session history
     with _session_lock:
         if req.session_id not in _session_history:
             _session_history[req.session_id] = []
         _session_history[req.session_id].append({"role": "user", "content": req.message})
         _session_history[req.session_id].append({"role": "assistant", "content": result["answer"]})
-        # Keep only last N exchanges
         if len(_session_history[req.session_id]) > SESSION_HISTORY_LIMIT * 2:
             _session_history[req.session_id] = _session_history[req.session_id][-(SESSION_HISTORY_LIMIT * 2):]
 
-    # Save to KB
     add_qa_to_kb(kb, req.message, result["answer"], result["sources"])
-
     return result
 
 
@@ -444,6 +429,12 @@ async def chat(req: ChatRequest):
 async def chat_history():
     kb = _get_domain_kb()
     return {"history": kb.get("qa_history", [])}
+
+
+@app.post("/api/search")
+async def search(req: SearchRequest):
+    result = await asyncio.to_thread(retrieve, req.query, req.top_k, embed_model)
+    return result
 
 
 @app.get("/api/questions")
@@ -486,6 +477,7 @@ async def answer_question_card(req: QuestionAnswerRequest):
     next_question = await asyncio.to_thread(pick_next_question, kb, req.session_id, req.doc_id)
     return {"result": result, "next_question": next_question}
 
+
 @app.post("/api/questions/short-answer")
 async def answer_short_question(req: ShortAnswerRequest):
     global kb
@@ -527,7 +519,6 @@ Return JSON only in this format:
 """
 
     client = OpenAI()
-
     resp = client.chat.completions.create(
         model=RAG_MODEL,
         messages=[{"role": "user", "content": prompt}],
@@ -559,12 +550,11 @@ Return JSON only in this format:
         sessions = kb.setdefault("question_sessions", {})
         session = sessions.setdefault(req.session_id, {})
         history = session.setdefault("short_answer_history", [])
-
         history.append(history_entry)
-
         save_kb(kb)
 
     return {"result": result}
+
 
 @app.get("/api/questions/history")
 async def get_answer_history(session_id: str = "default"):
@@ -576,7 +566,6 @@ async def get_answer_history(session_id: str = "default"):
         .get(session_id, {})
         .get("short_answer_history", [])
     )
-
     multiple_history = (
         kb.get("study_progress", {})
         .get(session_id, {})
@@ -584,7 +573,6 @@ async def get_answer_history(session_id: str = "default"):
     )
 
     history = short_history + multiple_history
-
     latest_by_question = {}
 
     for item in history:
@@ -594,18 +582,11 @@ async def get_answer_history(session_id: str = "default"):
         latest_by_question[qid] = item
 
     history = list(latest_by_question.values())
-
     history.sort(
         key=lambda item: item.get("timestamp", ""),
         reverse=True
     )
-
-    return {
-        "session_id": session_id,
-        "history": history
-    }
-
-
+    return {"session_id": session_id, "history": history}
 
 
 @app.post("/api/questions/next")
@@ -614,16 +595,6 @@ async def next_question(req: QuestionNextRequest):
     question = await asyncio.to_thread(pick_next_question, kb, req.session_id, req.doc_id)
     return {"question": question}
 
-
-# ── Routes: Search ───────────────────────────────────────────────────────────
-
-@app.post("/api/search")
-async def search(req: SearchRequest):
-    result = await asyncio.to_thread(retrieve, req.query, req.top_k, embed_model)
-    return result
-
-
-# ── Routes: Connections ──────────────────────────────────────────────────────
 
 @app.get("/api/connections")
 async def get_connections():
@@ -651,8 +622,6 @@ async def refresh_connections():
     return {"status": "refreshed", "document_count": len(kb["documents"]), "concepts_backfilled": concept_updates}
 
 
-# ── Routes: Knowledge Base / Stats ───────────────────────────────────────────
-
 @app.get("/api/knowledge-base")
 async def get_knowledge_base():
     return _get_domain_kb()
@@ -664,7 +633,9 @@ async def get_stats():
     return kb.get("stats", {})
 
 
-# ── Mount static files (must be last) ───────────────────────────────────────
+# ==============================================================================
+# [구역 7] 정적 파일 마운트 (반드시 파일의 최하단에 위치)
+# ==============================================================================
 
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
