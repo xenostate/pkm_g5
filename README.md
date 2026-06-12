@@ -41,8 +41,10 @@ A local-first Personal Knowledge Management system powered by RAG (Retrieval-Aug
 
 ### 1. Set up Python environment
 
+Requires Python **3.11+** — if your system `python3` is older (e.g. macOS ships 3.9), use an explicit version:
+
 ```bash
-python3 -m venv .venv
+python3.11 -m venv .venv   # or: python3 -m venv .venv (if python3 >= 3.11)
 .venv/bin/pip install -r scripts/requirements.txt
 ```
 
@@ -121,7 +123,8 @@ Open `http://localhost:8090` in your browser.
 |---------|---------|-------------|
 | `EMBED_MODEL` | `intfloat/multilingual-e5-base` | Embedding model (runs on CPU) |
 | `RAG_MODEL` | `gpt-4o-mini` | OpenAI model for LLM features |
-| `RAG_TOP_K` | `5` | Chunks retrieved per query |
+| `RAG_TOP_K` | `10` | Chunks retrieved per query |
+| `RAG_CONTEXT_CHUNKS` | `8` | Chunks passed to the LLM as context |
 | `CHUNK_SIZE` | `500` | Words per chunk |
 | `CHUNK_OVERLAP` | `50` | Overlap words between chunks |
 
