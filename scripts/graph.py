@@ -50,6 +50,12 @@ def canonicalize_concepts(kb: dict, embed_fn, threshold: float = 0.94) -> dict:
                 key = c.strip().lower()
                 counts[key] += 1
                 display.setdefault(key, c.strip())
+    # extracted entity names share the same canonical space as concepts
+    for name, entry in kb.get("entities", {}).items():
+        if isinstance(name, str) and name.strip():
+            key = name.strip().lower()
+            counts[key] += max(len(entry.get("doc_ids", [])), 1)
+            display.setdefault(key, name.strip())
 
     labels = sorted(counts)
     index = {}
@@ -167,12 +173,20 @@ def _concept_membership(kb: dict) -> dict[str, dict]:
     return members
 
 
-def build_concept_graph(kb: dict, embed_fn=None) -> nx.Graph:
-    """Concept-projection graph: concepts are nodes; edges = co-occurrence in a doc.
+# Cross-document semantic edge floor, in rescaled-cosine units (raw e5 ~0.88).
+SEMANTIC_EDGE_MIN = 0.6
+# Max semantic edges kept per node at build time (strongest first).
+SEMANTIC_EDGE_TOP_K = 4
 
-    Edge weight = shared-doc count plus an embedding-similarity bonus (0..1) so
-    that top-K pruning on the frontend keeps the most semantically related pair
-    of each within-document clique.
+
+def build_concept_graph(kb: dict, embed_fn=None) -> nx.Graph:
+    """Concept-projection graph: canonical concepts/entities are the nodes.
+
+    Edge kinds, by descending meaningfulness:
+    - "triple":   LLM-extracted typed relation (subject -predicate-> object)
+    - "semantic": embedding similarity between concepts of *different* documents
+                  (same-doc relatedness is expected; cross-doc links carry insight)
+    - "cooccur":  same-document co-occurrence (kept as an optional layer)
     """
     members = _concept_membership(kb)
     G = nx.Graph()
@@ -197,6 +211,8 @@ def build_concept_graph(kb: dict, embed_fn=None) -> nx.Graph:
             by_doc.setdefault(doc_id, []).append(canonical)
 
     titles = {doc_id: doc.get("title", doc_id) for doc_id, doc in kb.get("documents", {}).items()}
+
+    # 1) same-document co-occurrence (optional layer on the frontend)
     for doc_id, concepts in by_doc.items():
         for i, a in enumerate(concepts):
             for b in concepts[i + 1:]:
@@ -210,6 +226,57 @@ def build_concept_graph(kb: dict, embed_fn=None) -> nx.Graph:
                     G.add_edge(u, v, kind="cooccur", weight=1.0 + bonus,
                                shared_docs=[titles.get(doc_id, doc_id)],
                                created_at=min(G.nodes[u]["created_at"], G.nodes[v]["created_at"]))
+
+    # 2) cross-document semantic edges: concepts from different docs whose
+    #    embeddings are close — the non-obvious links between sources
+    if sim:
+        candidates: dict[str, list[tuple[float, str]]] = {}
+        for i, a in enumerate(labels):
+            for b in labels[i + 1:]:
+                if G.has_edge(f"concept::{a}", f"concept::{b}"):
+                    continue  # already linked by co-occurrence
+                if set(members[a]["doc_ids"]) & set(members[b]["doc_ids"]):
+                    continue  # same-doc pair: relatedness is expected
+                s = sim[a].get(b, 0.0)
+                if s >= SEMANTIC_EDGE_MIN:
+                    candidates.setdefault(a, []).append((s, b))
+                    candidates.setdefault(b, []).append((s, a))
+        kept: set[tuple[str, str]] = set()
+        for a, pairs in candidates.items():
+            for s, b in sorted(pairs, reverse=True)[:SEMANTIC_EDGE_TOP_K]:
+                kept.add(tuple(sorted((a, b))))
+        for a, b in kept:
+            u, v = f"concept::{a}", f"concept::{b}"
+            G.add_edge(u, v, kind="semantic", weight=round(sim[a][b], 3),
+                       created_at=max(G.nodes[u]["created_at"], G.nodes[v]["created_at"]))
+
+    # 3) typed relation edges from extracted SPO triples (primary layer)
+    index = kb.get("concept_index", {})
+    entities = kb.get("entities", {})
+
+    def _node_for(name: str) -> str | None:
+        canonical = index.get(name.strip().lower(), name.strip())
+        node_id = f"concept::{canonical}"
+        if not G.has_node(node_id):
+            ent = entities.get(name) or entities.get(canonical)
+            if ent is None:
+                return None
+            doc_ids = ent.get("doc_ids", [])
+            G.add_node(node_id, kind="entity", label=canonical,
+                       entity_type=ent.get("type", "concept"),
+                       doc_ids=doc_ids, docs=[titles.get(d, d) for d in doc_ids],
+                       freq=max(len(doc_ids), 1), created_at=ent.get("created_at", ""))
+        return node_id
+
+    for t in kb.get("triples", []):
+        u = _node_for(t.get("subject", ""))
+        v = _node_for(t.get("object", ""))
+        if not u or not v or u == v:
+            continue
+        # typed relations override weaker edge kinds on the same pair
+        G.add_edge(u, v, kind="triple", weight=2.0,
+                   label=t.get("predicate", ""), category=t.get("category", "related"),
+                   created_at=t.get("created_at", ""))
     return G
 
 
