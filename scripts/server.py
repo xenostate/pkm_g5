@@ -419,7 +419,7 @@ async def chat(req: ChatRequest):
         history = _session_history.get(req.session_id, [])
 
     result = await asyncio.to_thread(
-        answer_question, req.message, history, embed_model, kb
+        answer_question, req.message, history, embed_model, kb, _embed_labels
     )
 
     with _session_lock:

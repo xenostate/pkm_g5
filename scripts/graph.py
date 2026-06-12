@@ -356,6 +356,40 @@ def build_graph_payload(kb: dict, embed_fn=None) -> dict:
             "gaps": gaps, "documents": documents}
 
 
+# ── Personalized PageRank retrieval fusion ─────────────────────────────────
+
+# Minimum query-to-concept cosine for a concept to seed the PageRank walk.
+PPR_SEED_MIN = 0.5
+
+
+def ppr_doc_scores(kb: dict, embed_fn, query: str, top_m: int = 4) -> dict[str, float]:
+    """Personalized PageRank over the doc-concept bipartite graph.
+
+    Seeds the walk at the concept nodes nearest the query embedding and
+    returns max-normalized scores per document. Empty dict when the graph
+    is empty or nothing matches the query.
+    """
+    G = build_graph(kb)
+    label_nodes = [(n, d["label"]) for n, d in G.nodes(data=True) if d.get("kind") != "document"]
+    if not label_nodes or len(G) == 0:
+        return {}
+    vecs = np.asarray(embed_fn([lbl for _, lbl in label_nodes]))
+    qv = np.asarray(embed_fn([query]))[0]
+    sims = vecs @ qv
+    order = np.argsort(-sims)[:top_m]
+    seeds = {label_nodes[i][0]: float(sims[i]) for i in order if sims[i] > PPR_SEED_MIN}
+    if not seeds:
+        return {}
+    pr = nx.pagerank(G, alpha=0.85, personalization=seeds, weight="weight")
+    doc_scores = {n: s for n, s in pr.items() if G.nodes[n].get("kind") == "document"}
+    if not doc_scores:
+        return {}
+    mx = max(doc_scores.values())
+    if mx <= 0:
+        return {}
+    return {n: s / mx for n, s in doc_scores.items()}
+
+
 # ── Community labels (LLM, cached) ─────────────────────────────────────────
 
 def _community_key(top_label: str) -> str:

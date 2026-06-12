@@ -11,18 +11,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 def fake_embed():
     """Deterministic embedder: known synonyms map to nearly-identical vectors."""
     base = {
-        "rag": np.array([1.0, 0.0, 0.0, 0.0]),
-        "retrieval augmented generation": np.array([0.98, 0.02, 0.0, 0.0]),
-        "agile": np.array([0.0, 1.0, 0.0, 0.0]),
-        "agile methodology": np.array([0.02, 0.98, 0.0, 0.0]),
-        "software process": np.array([0.0, 0.0, 1.0, 0.0]),
-        "requirements": np.array([0.0, 0.0, 0.0, 1.0]),
+        "rag": np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
+        "retrieval augmented generation": np.array([0.98, 0.02, 0.0, 0.0, 0.0]),
+        "agile": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
+        "agile methodology": np.array([0.02, 0.98, 0.0, 0.0, 0.0]),
+        "software process": np.array([0.0, 0.0, 1.0, 0.0, 0.0]),
+        "requirements": np.array([0.0, 0.0, 0.0, 1.0, 0.0]),
+        # orthogonal to every known concept: for no-seed-match tests
+        "zzz unrelated gibberish query": np.array([0.0, 0.0, 0.0, 0.0, 1.0]),
     }
 
     def embed(labels):
         out = []
         for label in labels:
-            v = base.get(label.lower(), np.random.default_rng(abs(hash(label)) % 2**32).normal(size=4))
+            v = base.get(label.lower(), np.random.default_rng(abs(hash(label)) % 2**32).normal(size=5))
             out.append(v / np.linalg.norm(v))
         return np.array(out)
 

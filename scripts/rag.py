@@ -450,13 +450,29 @@ def build_graph_connections(kb: dict | None, top_docs: list[str]) -> list[dict]:
     return graph_links
 
 
-def answer_question(query: str, conversation_history: list = None, model=None, kb: dict | None = None) -> dict:
+def answer_question(query: str, conversation_history: list = None, model=None, kb: dict | None = None,
+                    embed_fn=None) -> dict:
     """
     RAG Q&A: retrieve relevant chunks, generate answer with OpenAI.
+    When kb and embed_fn are given, retrieval scores are fused with
+    Personalized PageRank over the knowledge graph (multi-hop boost).
 
     Returns: {answer, sources, confidence, related_docs, connections}
     """
     retrieval = retrieve(query, top_k=TOP_K, model=model)
+
+    # graph fusion: rescore chunks by PPR document relevance (never fatal)
+    if kb is not None and embed_fn is not None and retrieval["results"]:
+        try:
+            from scripts.graph import ppr_doc_scores
+            graph_scores = ppr_doc_scores(kb, embed_fn, query)
+            if graph_scores:
+                for r in retrieval["results"]:
+                    r["score"] = round(0.75 * r["score"] + 0.25 * graph_scores.get(r["doc_id"], 0.0), 4)
+                retrieval["results"].sort(key=lambda r: r["score"], reverse=True)
+        except Exception:
+            pass
+
     related_docs = build_related_docs(retrieval)
     top_docs = extract_top_docs(retrieval)
     graph_connections = build_graph_connections(kb, top_docs)
