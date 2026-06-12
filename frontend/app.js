@@ -1058,9 +1058,7 @@ function graphCyElements(payload) {
                 norm: (e.weight - wMin) / (wMax - wMin),
                 label: e.kind === "cooccur"
                     ? (e.shared_docs || []).join(" · ")
-                    : e.kind === "semantic"
-                        ? `semantic ${e.weight.toFixed(2)}`
-                        : (e.label || e.kind),
+                    : (e.label || e.kind),
             },
         };
     });
@@ -1107,6 +1105,8 @@ function rebuildGraphView() {
                 "target-arrow-shape": "triangle", "arrow-scale": 0.8, "curve-style": "bezier",
                 "target-arrow-color": (ele) => GRAPH_CAT_COLORS[ele.data("category")] || "#6b6b75" }},
             { selector: "edge[kind='trail']", style: { "line-style": "dotted", "line-color": "#4e79a7", "width": 2.5, "curve-style": "bezier" }},
+            { selector: ".label-hidden", style: { "text-opacity": 0 }},
+            { selector: ".label-hidden:selected, .label-hidden:active", style: { "text-opacity": 1 }},
             { selector: ".faded", style: { "opacity": 0.08, "text-opacity": 0.03 }},
             { selector: ".hl-edge", style: {
                 "label": "data(label)", "font-size": 8.5, "color": "#e8b34b",
@@ -1121,8 +1121,29 @@ function rebuildGraphView() {
         wheelSensitivity: 0.2,
     });
     wireGraphInteractions();
+    wireZoomAdaptiveLabels();
     renderGraphLegend(graphState.payload);
     applyGraphSearch(document.getElementById("graph-search").value.trim().toLowerCase());
+}
+
+// Overview readability: below this zoom, only hub concepts keep labels.
+const LABEL_ZOOM_THRESHOLD = 0.9;
+
+function wireZoomAdaptiveLabels() {
+    const cy = graphState.cy;
+    const minor = cy.nodes().filter(n => n.data("freq") < 2 && n.data("centrality") < 0.05);
+    let scheduled = false;
+    const update = () => {
+        scheduled = false;
+        minor.toggleClass("label-hidden", cy.zoom() < LABEL_ZOOM_THRESHOLD);
+    };
+    cy.on("zoom", () => {
+        if (!scheduled) {
+            scheduled = true;
+            requestAnimationFrame(update);
+        }
+    });
+    update();
 }
 
 function wireGraphInteractions() {
@@ -1132,11 +1153,15 @@ function wireGraphInteractions() {
         if (graphState.ego) return;
         const hood = evt.target.closedNeighborhood();
         cy.elements().difference(hood).addClass("faded");
+        hood.nodes().removeClass("label-hidden");
         evt.target.connectedEdges().addClass("hl-edge");
     });
     cy.on("mouseout", "node", () => {
         if (graphState.ego) return;
         cy.elements().removeClass("faded hl-edge");
+        if (cy.zoom() < LABEL_ZOOM_THRESHOLD) {
+            cy.nodes().filter(n => n.data("freq") < 2 && n.data("centrality") < 0.05).addClass("label-hidden");
+        }
     });
 
     cy.on("tap", "node", (evt) => {

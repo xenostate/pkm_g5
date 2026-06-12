@@ -34,7 +34,7 @@ from scripts.rag import (
     get_questions_by_document, pick_next_question, record_question_result,
     refresh_missing_concepts, refresh_all_connections, get_openai_client,
 )
-from scripts.graph import canonicalize_concepts, build_graph_payload, label_communities
+from scripts.graph import canonicalize_concepts, build_graph_payload, label_communities, label_semantic_edges
 from scripts.domain_context import (
     ensure_domain, get_current_domain, list_domains, migrate_legacy_data_to_general,
     set_current_domain, reset_current_domain,
@@ -634,6 +634,19 @@ def _label_communities_llm(prompt: str) -> str:
     return resp.choices[0].message.content or ""
 
 
+def _label_semantic_llm(prompt: str) -> str:
+    """One batched completion naming cross-document semantic relations."""
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=RAG_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+        max_tokens=600,
+        response_format={"type": "json_object"},
+    )
+    return resp.choices[0].message.content or "{}"
+
+
 @app.post("/api/connections/refresh")
 async def refresh_connections():
     kb = _get_domain_kb()
@@ -644,7 +657,9 @@ async def refresh_connections():
     def _label():
         canonicalize_concepts(kb, embed_fn=_embed_labels)
         payload = build_graph_payload(kb, embed_fn=_embed_labels)
-        if label_communities(kb, payload, _label_communities_llm):
+        changed = label_communities(kb, payload, _label_communities_llm)
+        changed += label_semantic_edges(kb, _label_semantic_llm, embed_fn=_embed_labels)
+        if changed:
             save_kb(kb)
 
     await asyncio.to_thread(_label)

@@ -179,6 +179,11 @@ SEMANTIC_EDGE_MIN = 0.6
 SEMANTIC_EDGE_TOP_K = 4
 
 
+def _pair_key(a: str, b: str) -> str:
+    """Stable cache key for an unordered concept pair."""
+    return "||".join(sorted((a.strip().lower(), b.strip().lower())))
+
+
 def build_concept_graph(kb: dict, embed_fn=None) -> nx.Graph:
     """Concept-projection graph: canonical concepts/entities are the nodes.
 
@@ -245,9 +250,11 @@ def build_concept_graph(kb: dict, embed_fn=None) -> nx.Graph:
         for a, pairs in candidates.items():
             for s, b in sorted(pairs, reverse=True)[:SEMANTIC_EDGE_TOP_K]:
                 kept.add(tuple(sorted((a, b))))
+        semantic_labels = kb.get("graph_cache", {}).get("semantic_labels", {})
         for a, b in kept:
             u, v = f"concept::{a}", f"concept::{b}"
             G.add_edge(u, v, kind="semantic", weight=round(sim[a][b], 3),
+                       label=semantic_labels.get(_pair_key(a, b), ""),
                        created_at=max(G.nodes[u]["created_at"], G.nodes[v]["created_at"]))
 
     # 3) typed relation edges from extracted SPO triples (primary layer)
@@ -336,7 +343,10 @@ def build_graph_payload(kb: dict, embed_fn=None) -> dict:
         "weight": round(d.get("weight", 0.0), 3), "label": d.get("label", ""),
         "shared_docs": d.get("shared_docs", []), "category": d.get("category", ""),
         "created_at": d.get("created_at", ""),
-    } for i, (u, v, d) in enumerate(G.edges(data=True))]
+    } for i, (u, v, d) in enumerate(G.edges(data=True))
+        # a similarity score alone is not a meaningful link: semantic edges
+        # surface only once the LLM has named the relation (on refresh)
+        if not (d.get("kind") == "semantic" and not d.get("label"))]
 
     documents = [{
         "id": doc_id, "title": doc.get("title", doc_id),
@@ -388,6 +398,65 @@ def ppr_doc_scores(kb: dict, embed_fn, query: str, top_m: int = 4) -> dict[str, 
     if mx <= 0:
         return {}
     return {n: s / mx for n, s in doc_scores.items()}
+
+
+# ── Semantic edge labels (LLM, batched + cached) ───────────────────────────
+
+def label_semantic_edges(kb: dict, llm_fn, embed_fn=None, max_pairs: int = 20) -> int:
+    """Name the relation behind the strongest cross-document semantic pairs.
+
+    One batched llm_fn call labels up to max_pairs unlabeled pairs; results are
+    cached in kb["graph_cache"]["semantic_labels"] ("" = verified unrelated, so
+    the pair is never re-asked and stays hidden). Returns labels added.
+    """
+    cache = kb.setdefault("graph_cache", {}).setdefault("semantic_labels", {})
+    G = build_concept_graph(kb, embed_fn=embed_fn)
+
+    pending = []
+    for u, v, d in G.edges(data=True):
+        if d.get("kind") != "semantic":
+            continue
+        a, b = G.nodes[u]["label"], G.nodes[v]["label"]
+        if _pair_key(a, b) in cache:
+            continue
+        pending.append((d.get("weight", 0.0), a, b,
+                        G.nodes[u].get("docs", []), G.nodes[v].get("docs", [])))
+    pending.sort(reverse=True)
+    pending = pending[:max_pairs]
+    if not pending:
+        return 0
+
+    lines = [
+        f'{i}. "{a}" (from: {", ".join(da[:2])}) — "{b}" (from: {", ".join(db[:2])})'
+        for i, (_, a, b, da, db) in enumerate(pending)
+    ]
+    prompt = (
+        "These concept pairs come from DIFFERENT documents in a personal knowledge base "
+        "and have similar embeddings. For each pair, give a short phrase (max 8 words, "
+        "same language as the concepts) naming how they relate — or null if they are "
+        "not meaningfully related.\n"
+        'Return ONLY JSON: {"labels": [phrase-or-null, ...]} with one entry per pair, in order.\n\n'
+        + "\n".join(lines)
+    )
+
+    try:
+        raw = llm_fn(prompt)
+        import json as _json
+        start, end = raw.find("{"), raw.rfind("}")
+        data = _json.loads(raw[start:end + 1]) if start != -1 else {}
+        labels = data.get("labels", [])
+    except Exception:
+        return 0
+
+    added = 0
+    for (_, a, b, _da, _db), label in zip(pending, labels):
+        key = _pair_key(a, b)
+        if isinstance(label, str) and label.strip() and label.strip().lower() != "null":
+            cache[key] = label.strip()[:80]
+            added += 1
+        else:
+            cache[key] = ""  # verified unrelated: hide and never re-ask
+    return added
 
 
 # ── Community labels (LLM, cached) ─────────────────────────────────────────

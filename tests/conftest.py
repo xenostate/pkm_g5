@@ -17,6 +17,8 @@ def fake_embed():
         "agile methodology": np.array([0.02, 0.98, 0.0, 0.0, 0.0]),
         "software process": np.array([0.0, 0.0, 1.0, 0.0, 0.0]),
         "requirements": np.array([0.0, 0.0, 0.0, 1.0, 0.0]),
+        # cosine ~0.93 to "agile": semantically close but below merge threshold
+        "scrum": np.array([0.0, 0.93, 0.0, 0.0, 0.368]),
         # orthogonal to every known concept: for no-seed-match tests
         "zzz unrelated gibberish query": np.array([0.0, 0.0, 0.0, 0.0, 1.0]),
     }
