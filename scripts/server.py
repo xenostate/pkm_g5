@@ -30,7 +30,7 @@ from scripts.indexer import get_model, get_chroma_collection, ingest_pdf, ingest
 from scripts.retriever import retrieve
 from scripts.rag import (
     load_kb, save_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
-    answer_question, summarize_document, extract_concepts, generate_document_questions,
+    answer_question, summarize_document, extract_knowledge, generate_document_questions,
     get_questions_by_document, pick_next_question, record_question_result,
     refresh_missing_concepts, refresh_all_connections, get_openai_client,
 )
@@ -255,10 +255,11 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     # 핵심 개념 추출
     try:
-        concepts = await asyncio.to_thread(extract_concepts, result["full_text"])
+        knowledge = await asyncio.to_thread(extract_knowledge, result["full_text"], result["title"])
+        concepts = [e["name"] for e in knowledge["entities"]][:10]
     except Exception as e:
-        log.warning(f"Concept extraction failed: {e}")
-        concepts = []
+        log.warning(f"Knowledge extraction failed: {e}")
+        knowledge, concepts = None, []
 
     add_document_to_kb(kb, {
         "doc_id": result["doc_id"],
@@ -267,7 +268,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         "source": file.filename,
         "chunk_count": result["chunk_count"],
         "text_length": result["text_length"],
-    }, summary=summary, concepts=concepts)
+    }, summary=summary, concepts=concepts, knowledge=knowledge)
     await asyncio.to_thread(_sync_knowledge_map)
 
     log.info(f"Ingested PDF: {file.filename} -> {result['chunk_count']} chunks")
@@ -296,10 +297,11 @@ async def add_url(req: UrlRequest):
         summary = ""
 
     try:
-        concepts = await asyncio.to_thread(extract_concepts, result["full_text"])
+        knowledge = await asyncio.to_thread(extract_knowledge, result["full_text"], result["title"])
+        concepts = [e["name"] for e in knowledge["entities"]][:10]
     except Exception as e:
-        log.warning(f"Concept extraction failed: {e}")
-        concepts = []
+        log.warning(f"Knowledge extraction failed: {e}")
+        knowledge, concepts = None, []
 
     add_document_to_kb(kb, {
         "doc_id": result["doc_id"],
@@ -308,7 +310,7 @@ async def add_url(req: UrlRequest):
         "source": req.url,
         "chunk_count": result["chunk_count"],
         "text_length": result["text_length"],
-    }, summary=summary, concepts=concepts)
+    }, summary=summary, concepts=concepts, knowledge=knowledge)
     await asyncio.to_thread(_sync_knowledge_map)
 
     log.info(f"Ingested URL: {req.url} -> {result['chunk_count']} chunks")
@@ -337,10 +339,11 @@ async def add_text(req: TextRequest):
         summary = ""
 
     try:
-        concepts = await asyncio.to_thread(extract_concepts, result["full_text"])
+        knowledge = await asyncio.to_thread(extract_knowledge, result["full_text"], result["title"])
+        concepts = [e["name"] for e in knowledge["entities"]][:10]
     except Exception as e:
-        log.warning(f"Concept extraction failed: {e}")
-        concepts = []
+        log.warning(f"Knowledge extraction failed: {e}")
+        knowledge, concepts = None, []
 
     add_document_to_kb(kb, {
         "doc_id": result["doc_id"],
@@ -349,7 +352,7 @@ async def add_text(req: TextRequest):
         "source": None,
         "chunk_count": result["chunk_count"],
         "text_length": result["text_length"],
-    }, summary=summary, concepts=concepts)
+    }, summary=summary, concepts=concepts, knowledge=knowledge)
     await asyncio.to_thread(_sync_knowledge_map)
 
     log.info(f"Ingested text: '{req.title}' -> {result['chunk_count']} chunks")
