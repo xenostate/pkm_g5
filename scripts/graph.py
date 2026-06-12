@@ -277,6 +277,22 @@ def build_concept_graph(kb: dict, embed_fn=None) -> nx.Graph:
         G.add_edge(u, v, kind="triple", weight=2.0,
                    label=t.get("predicate", ""), category=t.get("category", "related"),
                    created_at=t.get("created_at", ""))
+
+    # 4) session trails: concepts discussed together in the same Q&A exchange
+    node_by_lower = {G.nodes[n]["label"].lower(): n for n in G.nodes}
+    for qa in kb.get("qa_history", []):
+        text = f"{qa.get('question', '')} {qa.get('answer', '')}".lower()
+        mentioned = [n for lower, n in node_by_lower.items() if lower in text]
+        if len(mentioned) < 2 or len(mentioned) > 8:
+            continue  # too few to link; too many = generic answer, skip the clique
+        stamp = qa.get("timestamp", "")
+        for i, u in enumerate(mentioned):
+            for v in mentioned[i + 1:]:
+                if G.has_edge(u, v):
+                    if G.edges[u, v]["kind"] == "trail":
+                        G.edges[u, v]["weight"] += 1.0
+                    continue  # never override a stronger edge kind
+                G.add_edge(u, v, kind="trail", weight=1.0, created_at=stamp)
     return G
 
 
