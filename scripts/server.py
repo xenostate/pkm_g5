@@ -34,6 +34,7 @@ from scripts.rag import (
     get_questions_by_document, pick_next_question, record_question_result,
     refresh_missing_concepts, refresh_all_connections,
 )
+from scripts.graph import canonicalize_concepts, build_graph_payload
 from scripts.domain_context import (
     ensure_domain, get_current_domain, list_domains, migrate_legacy_data_to_general,
     set_current_domain, reset_current_domain,
@@ -70,6 +71,11 @@ def _sync_knowledge_map():
     kb = _get_domain_kb(domain)
     refresh_missing_concepts(kb, get_document_chunks)
     kb_cache[domain] = refresh_all_connections(kb, embed_model, describe_with_llm=False)
+
+
+def _embed_labels(labels: list[str]):
+    """Shared list[str] -> ndarray embedding wrapper around the loaded e5 model."""
+    return embed_model.encode(labels, normalize_embeddings=True, show_progress_bar=False)
 
 
 def _get_domain_kb(domain: str | None = None) -> dict:
@@ -620,6 +626,17 @@ async def refresh_connections():
     refreshed = await asyncio.to_thread(refresh_all_connections, kb, embed_model, True)
     kb_cache[get_current_domain()] = refreshed
     return {"status": "refreshed", "document_count": len(kb["documents"]), "concepts_backfilled": concept_updates}
+
+
+@app.get("/api/graph")
+async def get_graph():
+    kb = _get_domain_kb()
+
+    def _payload():
+        canonicalize_concepts(kb, embed_fn=_embed_labels)
+        return build_graph_payload(kb)
+
+    return await asyncio.to_thread(_payload)
 
 
 @app.get("/api/knowledge-base")

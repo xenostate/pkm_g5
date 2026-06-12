@@ -139,3 +139,50 @@ def find_structural_gaps(G: nx.Graph, max_density: float = 0.05, min_size: int =
             })
     gaps.sort(key=lambda g: -g["size_product"])
     return gaps[:5]
+
+
+# ── Frontend payload ───────────────────────────────────────────────────────
+
+def build_graph_payload(kb: dict) -> dict:
+    """Serialize the analyzed graph for GET /api/graph (frontend contract)."""
+    G = build_graph(kb)
+    analyze_graph(G)
+    gaps = find_structural_gaps(G)
+
+    cached_labels = kb.get("graph_cache", {}).get("community_labels", {})
+    comm_nodes = {}
+    for n, d in G.nodes(data=True):
+        comm_nodes.setdefault(d.get("community", -1), []).append(n)
+
+    communities = []
+    for cid, members in sorted(comm_nodes.items()):
+        top = max(members, key=lambda n: G.nodes[n].get("centrality", 0))
+        communities.append({
+            "id": cid,
+            "label": cached_labels.get(str(cid)) or G.nodes[top].get("label", str(cid)),
+            "node_count": len(members),
+        })
+
+    nodes = [{
+        "id": n, "label": d.get("label", n), "kind": d.get("kind", "document"),
+        "entity_type": d.get("entity_type", ""), "community": d.get("community", -1),
+        "centrality": d.get("centrality", 0.0), "degree": d.get("degree", 0),
+        "created_at": d.get("created_at", ""), "source_type": d.get("source_type", ""),
+    } for n, d in G.nodes(data=True)]
+
+    edges = [{
+        "id": f"e{i}", "source": u, "target": v, "kind": d.get("kind", ""),
+        "weight": d.get("weight", 0.0), "label": d.get("label", ""),
+        "category": d.get("category", ""), "created_at": d.get("created_at", ""),
+    } for i, (u, v, d) in enumerate(G.edges(data=True))]
+
+    label_by_cid = {c["id"]: c["label"] for c in communities}
+    for g in gaps:
+        name_a = label_by_cid.get(g["a"], g["label_a"])
+        name_b = label_by_cid.get(g["b"], g["label_b"])
+        g["suggestion"] = (
+            f"'{name_a}' 영역과 '{name_b}' 영역이 거의 연결되어 있지 않습니다. "
+            f"두 영역을 잇는 질문을 Chat에 해보세요."
+        )
+
+    return {"nodes": nodes, "edges": edges, "communities": communities, "gaps": gaps}
