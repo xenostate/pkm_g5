@@ -93,3 +93,49 @@ def build_graph(kb: dict) -> nx.Graph:
                            weight=float(conn.get("similarity", 0.0)),
                            label=conn.get("description", ""), created_at=doc.get("added_at", ""))
     return G
+
+
+# ── Analysis ───────────────────────────────────────────────────────────────
+
+def analyze_graph(G: nx.Graph, seed: int = 42) -> None:
+    """Annotate nodes in-place with community id, betweenness centrality, degree."""
+    if len(G) == 0:
+        return
+    communities = nx.community.louvain_communities(G, weight="weight", seed=seed)
+    for cid, members in enumerate(communities):
+        for n in members:
+            G.nodes[n]["community"] = cid
+    centrality = nx.betweenness_centrality(G, weight=None, normalized=True)
+    for n, c in centrality.items():
+        G.nodes[n]["centrality"] = round(c, 4)
+        G.nodes[n]["degree"] = G.degree(n)
+
+
+def find_structural_gaps(G: nx.Graph, max_density: float = 0.05, min_size: int = 2) -> list[dict]:
+    """InfraNodus-style gaps: large community pairs with sparse inter-links."""
+    from itertools import combinations
+
+    comm_nodes = {}
+    for n, data in G.nodes(data=True):
+        if "community" in data:
+            comm_nodes.setdefault(data["community"], []).append(n)
+
+    gaps = []
+    for a, b in combinations(sorted(comm_nodes), 2):
+        na, nb = comm_nodes[a], comm_nodes[b]
+        if len(na) < min_size or len(nb) < min_size:
+            continue
+        inter = sum(1 for u in na for v in nb if G.has_edge(u, v))
+        density = inter / (len(na) * len(nb))
+        if density <= max_density:
+            bridge_a = max(na, key=lambda n: G.nodes[n].get("centrality", 0))
+            bridge_b = max(nb, key=lambda n: G.nodes[n].get("centrality", 0))
+            gaps.append({
+                "a": a, "b": b,
+                "label_a": G.nodes[bridge_a].get("label", str(a)),
+                "label_b": G.nodes[bridge_b].get("label", str(b)),
+                "bridge_a": bridge_a, "bridge_b": bridge_b,
+                "size_product": len(na) * len(nb),
+            })
+    gaps.sort(key=lambda g: -g["size_product"])
+    return gaps[:5]
