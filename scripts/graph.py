@@ -146,11 +146,80 @@ def find_structural_gaps(G: nx.Graph, max_density: float = 0.05, min_size: int =
     return gaps[:5]
 
 
-# ── Frontend payload ───────────────────────────────────────────────────────
+# ── Frontend payload (concept-centric) ─────────────────────────────────────
 
-def build_graph_payload(kb: dict) -> dict:
-    """Serialize the analyzed graph for GET /api/graph (frontend contract)."""
-    G = build_graph(kb)
+def _concept_membership(kb: dict) -> dict[str, dict]:
+    """Map canonical concept -> {doc_ids, docs (titles), created_at (earliest)}."""
+    index = kb.get("concept_index", {})
+    members: dict[str, dict] = {}
+    for doc_id, doc in kb.get("documents", {}).items():
+        for raw in doc.get("concepts", []):
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            canonical = index.get(raw.strip().lower(), raw.strip())
+            entry = members.setdefault(canonical, {"doc_ids": [], "docs": [], "created_at": ""})
+            if doc_id not in entry["doc_ids"]:
+                entry["doc_ids"].append(doc_id)
+                entry["docs"].append(doc.get("title", doc_id))
+                added = doc.get("added_at", "")
+                if added and (not entry["created_at"] or added < entry["created_at"]):
+                    entry["created_at"] = added
+    return members
+
+
+def build_concept_graph(kb: dict, embed_fn=None) -> nx.Graph:
+    """Concept-projection graph: concepts are nodes; edges = co-occurrence in a doc.
+
+    Edge weight = shared-doc count plus an embedding-similarity bonus (0..1) so
+    that top-K pruning on the frontend keeps the most semantically related pair
+    of each within-document clique.
+    """
+    members = _concept_membership(kb)
+    G = nx.Graph()
+    for canonical, entry in members.items():
+        G.add_node(f"concept::{canonical}", kind="concept", label=canonical,
+                   doc_ids=entry["doc_ids"], docs=entry["docs"],
+                   freq=len(entry["doc_ids"]), created_at=entry["created_at"])
+
+    labels = list(members)
+    sim = {}
+    if embed_fn is not None and len(labels) > 1:
+        vectors = np.asarray(embed_fn(labels))
+        sims = vectors @ vectors.T
+        pos = {lbl: i for i, lbl in enumerate(labels)}
+        # e5 cosine range is compressed; rescale ~[0.7, 1.0] -> [0, 1]
+        sim = {lbl: {o: max(0.0, min(1.0, (float(sims[pos[lbl], pos[o]]) - 0.7) / 0.3))
+                     for o in labels if o != lbl} for lbl in labels}
+
+    by_doc: dict[str, list[str]] = {}
+    for canonical, entry in members.items():
+        for doc_id in entry["doc_ids"]:
+            by_doc.setdefault(doc_id, []).append(canonical)
+
+    titles = {doc_id: doc.get("title", doc_id) for doc_id, doc in kb.get("documents", {}).items()}
+    for doc_id, concepts in by_doc.items():
+        for i, a in enumerate(concepts):
+            for b in concepts[i + 1:]:
+                u, v = f"concept::{a}", f"concept::{b}"
+                if G.has_edge(u, v):
+                    G.edges[u, v]["weight"] += 1.0
+                    if titles.get(doc_id) not in G.edges[u, v]["shared_docs"]:
+                        G.edges[u, v]["shared_docs"].append(titles.get(doc_id, doc_id))
+                else:
+                    bonus = sim.get(a, {}).get(b, 0.0)
+                    G.add_edge(u, v, kind="cooccur", weight=1.0 + bonus,
+                               shared_docs=[titles.get(doc_id, doc_id)],
+                               created_at=min(G.nodes[u]["created_at"], G.nodes[v]["created_at"]))
+    return G
+
+
+def build_graph_payload(kb: dict, embed_fn=None) -> dict:
+    """Serialize the analyzed concept graph for GET /api/graph.
+
+    Contract: {nodes, edges, communities, gaps, documents} where nodes are
+    canonical concepts annotated with their source documents.
+    """
+    G = build_concept_graph(kb, embed_fn=embed_fn)
     analyze_graph(G)
     gaps = find_structural_gaps(G)
 
@@ -169,17 +238,24 @@ def build_graph_payload(kb: dict) -> dict:
         })
 
     nodes = [{
-        "id": n, "label": d.get("label", n), "kind": d.get("kind", "document"),
+        "id": n, "label": d.get("label", n), "kind": d.get("kind", "concept"),
         "entity_type": d.get("entity_type", ""), "community": d.get("community", -1),
         "centrality": d.get("centrality", 0.0), "degree": d.get("degree", 0),
-        "created_at": d.get("created_at", ""), "source_type": d.get("source_type", ""),
+        "freq": d.get("freq", 1), "doc_ids": d.get("doc_ids", []), "docs": d.get("docs", []),
+        "created_at": d.get("created_at", ""),
     } for n, d in G.nodes(data=True)]
 
     edges = [{
         "id": f"e{i}", "source": u, "target": v, "kind": d.get("kind", ""),
-        "weight": d.get("weight", 0.0), "label": d.get("label", ""),
-        "category": d.get("category", ""), "created_at": d.get("created_at", ""),
+        "weight": round(d.get("weight", 0.0), 3), "label": d.get("label", ""),
+        "shared_docs": d.get("shared_docs", []), "category": d.get("category", ""),
+        "created_at": d.get("created_at", ""),
     } for i, (u, v, d) in enumerate(G.edges(data=True))]
+
+    documents = [{
+        "id": doc_id, "title": doc.get("title", doc_id),
+        "source_type": doc.get("source_type", ""), "created_at": doc.get("added_at", ""),
+    } for doc_id, doc in kb.get("documents", {}).items()]
 
     label_by_cid = {c["id"]: c["label"] for c in communities}
     for g in gaps:
@@ -190,7 +266,8 @@ def build_graph_payload(kb: dict) -> dict:
             f"두 영역을 잇는 질문을 Chat에 해보세요."
         )
 
-    return {"nodes": nodes, "edges": edges, "communities": communities, "gaps": gaps}
+    return {"nodes": nodes, "edges": edges, "communities": communities,
+            "gaps": gaps, "documents": documents}
 
 
 # ── Community labels (LLM, cached) ─────────────────────────────────────────
@@ -213,7 +290,12 @@ def label_communities(kb: dict, payload: dict, llm_fn) -> int:
         if cid < 0 or str(cid) in cache:
             continue
         members = members_by_cid.get(cid, [])
-        titles = [n["label"] for n in members if n.get("kind") == "document"][:5]
+        titles = []
+        for n in members:
+            for title in n.get("docs", []):
+                if title not in titles:
+                    titles.append(title)
+        titles = titles[:5]
         concepts = [n["label"] for n in members if n.get("kind") != "document"][:8]
         if not titles and not concepts:
             continue

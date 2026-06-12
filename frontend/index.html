@@ -105,18 +105,17 @@
                     <div class="connections-container">
                         <div class="graph-toolbar">
                             <input type="search" id="graph-search" placeholder="Find node...">
-                            <label class="graph-slider-label">similarity ≥ <span id="graph-threshold-value">0.50</span>
-                                <input type="range" id="graph-threshold" min="0.3" max="1" step="0.05" value="0.5">
+                            <label class="graph-slider-label">links/concept ≤ <span id="graph-topk-value">3</span>
+                                <input type="range" id="graph-topk" min="1" max="8" step="1" value="3">
                             </label>
                             <label class="graph-slider-label">as of <span id="graph-date-value">now</span>
                                 <input type="range" id="graph-date" min="0" max="100" value="100">
                             </label>
                             <div class="graph-layer-toggles">
-                                <button id="graph-show-concepts" class="map-toggle active" type="button">concepts</button>
-                                <button id="graph-show-similarity" class="map-toggle active" type="button">similarity</button>
+                                <button id="graph-show-cooccur" class="map-toggle active" type="button">co-occurrence</button>
                                 <button id="graph-show-relations" class="map-toggle active" type="button">relations</button>
                                 <button id="graph-show-trails" class="map-toggle active" type="button">trails</button>
-                                <button id="graph-show-low-degree" class="map-toggle" type="button">+low-degree</button>
+                                <button id="graph-show-badges" class="map-toggle active" type="button">doc badges</button>
                             </div>
                             <button id="graph-fit" class="btn btn-secondary" type="button">Fit</button>
                         </div>

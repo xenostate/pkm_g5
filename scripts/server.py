@@ -640,7 +640,7 @@ async def refresh_connections():
 
     def _label():
         canonicalize_concepts(kb, embed_fn=_embed_labels)
-        payload = build_graph_payload(kb)
+        payload = build_graph_payload(kb, embed_fn=_embed_labels)
         if label_communities(kb, payload, _label_communities_llm):
             save_kb(kb)
 
@@ -654,7 +654,7 @@ async def get_graph():
 
     def _payload():
         canonicalize_concepts(kb, embed_fn=_embed_labels)
-        return build_graph_payload(kb)
+        return build_graph_payload(kb, embed_fn=_embed_labels)
 
     return await asyncio.to_thread(_payload)
 

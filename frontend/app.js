@@ -20,12 +20,12 @@ const GRAPH_CAT_COLORS = { "is-a": "#4e79a7", "part-of": "#59a14f", "uses": "#76
 const graphState = {
     cy: null,
     payload: null,
-    threshold: 0.5,
-    layers: { concept: true, similarity: true, triple: true, trail: true },
-    showLowDegree: false,
+    topK: 3,              // max co-occurrence links kept per concept
+    layers: { cooccur: true, triple: true, trail: true },
+    showBadges: true,     // show source-document badges under concept labels
     dateCut: null,        // null = now (no temporal filter)
     dateRange: null,      // [minMs, maxMs] from payload
-    selectedDocs: null,   // Set of doc ids visible on the map; null = all
+    selectedDocs: null,   // Set of doc ids whose concepts are visible; null = all
     ego: null,
 };
 
@@ -489,7 +489,7 @@ function initChatWidget() {
 function updateChatWidgetVisibility(page) {
     const widget = document.getElementById("chat-widget");
     if (!widget) return;
-    widget.classList.toggle("hidden", page === "chat");
+    widget.classList.toggle("hidden", page === "chat" || page === "connections");
 }
 
 async function sendChat({ inputId, messagesId }) {
@@ -901,9 +901,9 @@ function initConnections() {
         hideLoading();
     });
 
-    document.getElementById("graph-threshold").addEventListener("input", (e) => {
-        graphState.threshold = parseFloat(e.target.value);
-        document.getElementById("graph-threshold-value").textContent = graphState.threshold.toFixed(2);
+    document.getElementById("graph-topk").addEventListener("input", (e) => {
+        graphState.topK = parseInt(e.target.value, 10);
+        document.getElementById("graph-topk-value").textContent = graphState.topK;
         rebuildGraphView();
     });
 
@@ -925,8 +925,7 @@ function initConnections() {
     });
 
     const layerButtons = {
-        "graph-show-concepts": "concept",
-        "graph-show-similarity": "similarity",
+        "graph-show-cooccur": "cooccur",
         "graph-show-relations": "triple",
         "graph-show-trails": "trail",
     };
@@ -938,9 +937,9 @@ function initConnections() {
         });
     });
 
-    document.getElementById("graph-show-low-degree").addEventListener("click", (e) => {
+    document.getElementById("graph-show-badges").addEventListener("click", (e) => {
         e.target.classList.toggle("active");
-        graphState.showLowDegree = e.target.classList.contains("active");
+        graphState.showBadges = e.target.classList.contains("active");
         rebuildGraphView();
     });
 
@@ -967,7 +966,7 @@ async function renderConnections() {
     const emptyEl = document.getElementById("connections-empty");
     const wrapEl = document.getElementById("cy-wrap");
 
-    let payload = { nodes: [], edges: [], communities: [], gaps: [] };
+    let payload = { nodes: [], edges: [], communities: [], gaps: [], documents: [] };
     try {
         const res = await apiFetch("/api/graph");
         if (res.ok) payload = await res.json();
@@ -986,46 +985,72 @@ async function renderConnections() {
         graphState.selectedDocs = saved ? new Set(JSON.parse(saved)) : null;
     } catch { graphState.selectedDocs = null; }
 
-    const docNodes = payload.nodes.filter(n => n.kind === "document");
-    wrapEl.style.display = docNodes.length ? "block" : "none";
-    emptyEl.style.display = docNodes.length ? "none" : "block";
+    const hasConcepts = payload.nodes.length > 0;
+    wrapEl.style.display = hasConcepts ? "block" : "none";
+    emptyEl.style.display = hasConcepts ? "none" : "block";
 
-    renderGraphDocFilter(docNodes);
+    renderGraphDocFilter(payload.documents || []);
     renderCommunityPanel(payload);
     renderGapPanel(payload);
-    if (docNodes.length) rebuildGraphView();
+    if (hasConcepts) rebuildGraphView();
+}
+
+// Short badge for a document title: leading chapter number ("3.Software..." -> "3")
+// or the first word as fallback.
+function docBadge(title) {
+    const m = /^(\d+)\./.exec(title || "");
+    if (m) return m[1];
+    return (title || "?").split(/\s+/)[0].slice(0, 6);
 }
 
 function graphCyElements(payload) {
-    const { threshold, layers, showLowDegree, dateCut, selectedDocs } = graphState;
+    const { topK, layers, dateCut, selectedDocs, showBadges } = graphState;
     const inDate = (iso) => !dateCut || !iso || isNaN(Date.parse(iso)) || iso <= dateCut;
 
-    const docs = payload.nodes.filter(n =>
-        n.kind === "document" &&
-        (selectedDocs === null || selectedDocs.has(n.id)) &&
-        inDate(n.created_at));
-    const docIds = new Set(docs.map(n => n.id));
-
-    // non-document nodes survive only if a visible doc references them
-    const adjacency = new Map();
-    payload.edges.forEach(e => {
-        if (docIds.has(e.source)) adjacency.set(e.target, (adjacency.get(e.target) || 0) + 1);
-        if (docIds.has(e.target)) adjacency.set(e.source, (adjacency.get(e.source) || 0) + 1);
-    });
-    const others = payload.nodes.filter(n =>
-        n.kind !== "document" &&
-        adjacency.has(n.id) &&
+    // concept nodes filtered by document selection + temporal cutoff
+    const visible = payload.nodes.filter(n =>
         inDate(n.created_at) &&
-        (n.kind !== "concept" || layers.concept) &&
-        (showLowDegree || n.degree >= 2));
+        (selectedDocs === null || (n.doc_ids || []).some(id => selectedDocs.has(id))));
+    const ids = new Set(visible.map(n => n.id));
 
-    const nodes = [...docs, ...others].map(n => ({ data: { ...n } }));
-    const ids = new Set(nodes.map(n => n.data.id));
-    const edges = payload.edges
-        .filter(e => ids.has(e.source) && ids.has(e.target))
-        .filter(e => graphState.layers[e.kind] !== false)
-        .filter(e => e.kind !== "similarity" || e.weight >= threshold)
-        .map(e => ({ data: { ...e, label: e.label || (e.kind === "similarity" ? `similarity ${e.weight.toFixed(2)}` : e.kind) } }));
+    const nodes = visible.map(n => {
+        const badge = (n.docs || []).map(docBadge).join("·");
+        const display = showBadges && badge ? `${n.label}\n[${badge}]` : n.label;
+        return { data: { ...n, display } };
+    });
+
+    // candidate edges among visible nodes, per active layers
+    const candidates = payload.edges.filter(e =>
+        ids.has(e.source) && ids.has(e.target) && layers[e.kind] !== false);
+
+    // co-occurrence edges: keep only each node's top-K strongest to avoid
+    // within-document cliques turning the map into a hairball
+    const cooccur = candidates.filter(e => e.kind === "cooccur")
+        .sort((a, b) => b.weight - a.weight);
+    const perNode = new Map();
+    const kept = [];
+    for (const e of cooccur) {
+        const cs = perNode.get(e.source) || 0;
+        const ct = perNode.get(e.target) || 0;
+        if (cs < topK || ct < topK) {
+            kept.push(e);
+            perNode.set(e.source, cs + 1);
+            perNode.set(e.target, ct + 1);
+        }
+    }
+    const others = candidates.filter(e => e.kind !== "cooccur");
+
+    const weights = cooccur.map(e => e.weight);
+    const wMin = Math.min(...weights, 1), wMax = Math.max(...weights, 1.001);
+    const edges = [...kept, ...others].map(e => ({
+        data: {
+            ...e,
+            norm: (e.weight - wMin) / (wMax - wMin),
+            label: e.kind === "cooccur"
+                ? (e.shared_docs || []).join(" · ")
+                : (e.label || e.kind),
+        },
+    }));
     return [...nodes, ...edges];
 }
 
@@ -1040,42 +1065,39 @@ function rebuildGraphView() {
         container: document.getElementById("cy"),
         elements: graphCyElements(payload),
         style: [
-            { selector: "node[kind='document']", style: {
+            { selector: "node", style: {
                 "background-color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
-                "width": (ele) => 20 + ele.data("centrality") * 70,
-                "height": (ele) => 20 + ele.data("centrality") * 70,
-                "label": "data(label)", "color": "#d8dbe4", "font-size": 11,
-                "text-valign": "bottom", "text-margin-y": 7, "text-max-width": "130px", "text-wrap": "ellipsis",
+                "width": (ele) => 14 + ele.data("freq") * 6 + ele.data("centrality") * 40,
+                "height": (ele) => 14 + ele.data("freq") * 6 + ele.data("centrality") * 40,
+                "label": "data(display)", "color": "#d8dbe4", "font-size": 10,
+                "text-valign": "bottom", "text-margin-y": 6,
+                "text-max-width": "110px", "text-wrap": "wrap",
                 "border-width": 2, "border-color": "#0c0e13",
             }},
-            { selector: "node[kind='concept']", style: {
-                "shape": "round-rectangle", "background-color": "#1d2230", "border-width": 1, "border-color": "#3a4156",
-                "width": "label", "height": 18, "padding": "5px",
-                "label": "data(label)", "color": "#c8a23f", "font-size": 9.5,
-                "text-valign": "center", "text-max-width": "110px", "text-wrap": "ellipsis",
-            }},
             { selector: "node[kind='entity']", style: {
-                "shape": "diamond", "background-color": "#27314a", "border-width": 1, "border-color": "#4a5a7a",
-                "width": 14, "height": 14,
-                "label": "data(label)", "color": "#9fb4dd", "font-size": 9,
-                "text-valign": "bottom", "text-margin-y": 4, "text-max-width": "100px", "text-wrap": "ellipsis",
+                "shape": "diamond", "border-color": "#4a5a7a",
             }},
-            { selector: "edge", style: { "curve-style": "straight", "line-color": "#2c3040", "width": 1, "opacity": 0.8 }},
-            { selector: "edge[kind='similarity']", style: {
-                "line-color": "#5c6072", "width": (ele) => 1 + (ele.data("weight") - 0.3) * 4.5 }},
-            { selector: "edge[kind='concept']", style: { "line-style": "dashed", "line-color": "#574a1e", "width": 1 }},
+            { selector: "edge", style: { "curve-style": "haystack", "haystack-radius": 0.3,
+                "line-color": "#3a3f50", "width": 1, "opacity": 0.75 }},
+            { selector: "edge[kind='cooccur']", style: {
+                "line-color": "#565c70",
+                "width": (ele) => 1 + ele.data("norm") * 3.5 }},
             { selector: "edge[kind='triple']", style: {
                 "line-color": (ele) => GRAPH_CAT_COLORS[ele.data("category")] || "#6b6b75", "width": 2,
                 "target-arrow-shape": "triangle", "arrow-scale": 0.8, "curve-style": "bezier",
                 "target-arrow-color": (ele) => GRAPH_CAT_COLORS[ele.data("category")] || "#6b6b75" }},
-            { selector: "edge[kind='trail']", style: { "line-style": "dotted", "line-color": "#4e79a7", "width": 2.5 }},
-            { selector: ".faded", style: { "opacity": 0.1, "text-opacity": 0.04 }},
+            { selector: "edge[kind='trail']", style: { "line-style": "dotted", "line-color": "#4e79a7", "width": 2.5, "curve-style": "bezier" }},
+            { selector: ".faded", style: { "opacity": 0.08, "text-opacity": 0.03 }},
             { selector: ".hl-edge", style: {
-                "label": "data(label)", "font-size": 9, "color": "#e8b34b",
-                "text-background-color": "#0c0e13", "text-background-opacity": 0.85, "text-background-padding": "3px" }},
+                "label": "data(label)", "font-size": 8.5, "color": "#e8b34b",
+                "text-background-color": "#0c0e13", "text-background-opacity": 0.85, "text-background-padding": "3px",
+                "text-wrap": "ellipsis", "text-max-width": "180px", "curve-style": "bezier" }},
             { selector: "node.search-hit", style: { "border-color": "#e8b34b", "border-width": 3 }},
         ],
-        layout: { name: "cose", animate: false, nodeRepulsion: 60000, idealEdgeLength: 95, gravity: 0.6, padding: 40 },
+        layout: {
+            name: "cose", animate: false, nodeRepulsion: 250000, idealEdgeLength: 110,
+            gravity: 0.35, padding: 30, componentSpacing: 120, nodeOverlap: 30,
+        },
         wheelSensitivity: 0.2,
     });
     wireGraphInteractions();
@@ -1097,7 +1119,7 @@ function wireGraphInteractions() {
         cy.elements().removeClass("faded hl-edge");
     });
 
-    cy.on("tap", "node[kind='document']", (evt) => {
+    cy.on("tap", "node", (evt) => {
         const hood = evt.target.closedNeighborhood();
         cy.elements().difference(hood).addClass("faded");
         hood.connectedEdges().addClass("hl-edge");
@@ -1110,8 +1132,10 @@ function wireGraphInteractions() {
         if (evt.target === cy && graphState.ego) exitGraphEgo();
     });
 
-    cy.on("dbltap", "node[kind='document']", (evt) => {
-        openSummaryFromKnowledgeMap(evt.target.data("label"));
+    // double-click: open the summary of the concept's first source document
+    cy.on("dbltap", "node", (evt) => {
+        const docs = evt.target.data("docs") || [];
+        if (docs.length) openSummaryFromKnowledgeMap(docs[0]);
     });
 }
 
@@ -1141,28 +1165,25 @@ function renderGraphLegend(payload) {
     const seen = new Set();
     const items = [];
     payload.nodes.forEach(n => {
-        if (n.kind !== "document" || n.community < 0 || seen.has(n.community)) return;
+        if (n.community < 0 || seen.has(n.community)) return;
         seen.add(n.community);
         const color = GRAPH_PALETTE[n.community % GRAPH_PALETTE.length];
         items.push(`<span><span class="swatch" style="background:${color}"></span>${escapeHtml(commLabels[n.community] || `cluster ${n.community}`)}</span>`);
     });
-    items.push('<span><span class="line-swatch"></span>similarity</span>');
-    items.push('<span><span class="line-swatch dashed"></span>concept</span>');
-    items.push('<span><span class="line-swatch dotted"></span>trail</span>');
     legendEl.innerHTML = items.join("");
 }
 
-function renderGraphDocFilter(docNodes) {
+function renderGraphDocFilter(docs) {
     const container = document.getElementById("graph-doc-filter");
-    if (!docNodes.length) {
+    if (!docs.length) {
         container.innerHTML = '<p class="empty-state">No documents yet.</p>';
         return;
     }
     const selected = graphState.selectedDocs;
-    container.innerHTML = docNodes.map(d => {
+    container.innerHTML = docs.map(d => {
         const checked = selected === null || selected.has(d.id) ? "checked" : "";
         return `<label><input type="checkbox" data-doc-id="${d.id}" ${checked}>` +
-               `<span class="doc-filter-title" title="${escapeHtml(d.label)}">${escapeHtml(d.label)}</span></label>`;
+               `<span class="doc-filter-title" title="${escapeHtml(d.title)}">${escapeHtml(d.title)}</span></label>`;
     }).join("");
     container.querySelectorAll("input[type='checkbox']").forEach(box => {
         box.addEventListener("change", () => {
@@ -1180,20 +1201,18 @@ function setGraphDocFilter(selectedDocs, opts = {}) {
         else localStorage.setItem(graphDocFilterKey(), JSON.stringify([...selectedDocs]));
     } catch { /* storage unavailable */ }
     if (!opts.skipRerenderFilter && graphState.payload) {
-        renderGraphDocFilter(graphState.payload.nodes.filter(n => n.kind === "document"));
+        renderGraphDocFilter(graphState.payload.documents || []);
     }
     rebuildGraphView();
 }
 
 function renderCommunityPanel(payload) {
     const container = document.getElementById("community-list");
-    const docCounts = {};
+    const counts = {};
     payload.nodes.forEach(n => {
-        if (n.kind === "document" && n.community >= 0) {
-            docCounts[n.community] = (docCounts[n.community] || 0) + 1;
-        }
+        if (n.community >= 0) counts[n.community] = (counts[n.community] || 0) + 1;
     });
-    const rows = payload.communities.filter(c => docCounts[c.id]);
+    const rows = payload.communities.filter(c => counts[c.id]);
     if (!rows.length) {
         container.innerHTML = '<p class="empty-state">Refresh connections to detect clusters.</p>';
         return;
@@ -1202,7 +1221,7 @@ function renderCommunityPanel(payload) {
         const color = GRAPH_PALETTE[c.id % GRAPH_PALETTE.length];
         return `<div class="cluster-row" data-community="${c.id}">` +
                `<span class="swatch" style="background:${color}"></span>${escapeHtml(c.label)}` +
-               `<span class="count">${docCounts[c.id]} docs</span></div>`;
+               `<span class="count">${counts[c.id]}</span></div>`;
     }).join("");
     container.querySelectorAll(".cluster-row").forEach(row => {
         row.addEventListener("click", () => {
