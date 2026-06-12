@@ -31,11 +31,16 @@ def _union_find_merge(labels: list[str], vectors: np.ndarray, threshold: float) 
     return list(groups.values())
 
 
-def canonicalize_concepts(kb: dict, embed_fn, threshold: float = 0.86) -> dict:
+def canonicalize_concepts(kb: dict, embed_fn, threshold: float = 0.94) -> dict:
     """Build kb["concept_index"]: raw lower-cased concept -> canonical label.
 
     embed_fn: list[str] -> np.ndarray of L2-normalized rows (injectable for tests;
     production passes a wrapper around the loaded e5 model).
+
+    Default threshold is calibrated for e5 embeddings, whose cosine range is
+    compressed (~0.75-1.0 even for unrelated short labels): 0.94 merges true
+    synonyms ("software process" ~ "software process models") without
+    collapsing distinct concepts.
     """
     counts = Counter()
     display = {}  # lower -> first-seen original casing
