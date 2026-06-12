@@ -103,27 +103,43 @@
                 </div>
                 <div class="connections-layout">
                     <div class="connections-container">
-                        <canvas id="connections-canvas"></canvas>
-                        <div id="connections-tooltip" class="connections-tooltip hidden"></div>
-                        <div class="connections-zoom-controls">
-                            <button id="connections-zoom-out" class="btn btn-secondary" type="button">-</button>
-                            <span id="connections-zoom-level">100%</span>
-                            <button id="connections-zoom-in" class="btn btn-secondary" type="button">+</button>
-                            <button id="connections-zoom-reset" class="btn btn-secondary" type="button">Reset</button>
+                        <div class="graph-toolbar">
+                            <input type="search" id="graph-search" placeholder="Find node...">
+                            <label class="graph-slider-label">similarity ≥ <span id="graph-threshold-value">0.50</span>
+                                <input type="range" id="graph-threshold" min="0.3" max="1" step="0.05" value="0.5">
+                            </label>
+                            <label class="graph-slider-label">as of <span id="graph-date-value">now</span>
+                                <input type="range" id="graph-date" min="0" max="100" value="100">
+                            </label>
+                            <div class="graph-layer-toggles">
+                                <button id="graph-show-concepts" class="map-toggle active" type="button">concepts</button>
+                                <button id="graph-show-similarity" class="map-toggle active" type="button">similarity</button>
+                                <button id="graph-show-relations" class="map-toggle active" type="button">relations</button>
+                                <button id="graph-show-trails" class="map-toggle active" type="button">trails</button>
+                                <button id="graph-show-low-degree" class="map-toggle" type="button">+low-degree</button>
+                            </div>
+                            <button id="graph-fit" class="btn btn-secondary" type="button">Fit</button>
                         </div>
-                        <div id="connections-legend" class="connections-legend">
-                            <button id="toggle-similarity" class="map-toggle active legend-toggle" type="button"><span class="legend-line similarity"></span> similarity</button>
-                            <button id="toggle-concepts" class="map-toggle active legend-toggle" type="button"><span class="legend-line concept"></span> shared concepts</button>
-                            <button id="toggle-topics" class="map-toggle active legend-toggle" type="button"><span class="legend-dot topic"></span> orbiting topic</button>
+                        <div id="cy-wrap">
+                            <div id="cy"></div>
+                            <div id="graph-ego-banner" class="graph-ego-banner">Focus mode — click to return to full view</div>
+                            <div id="graph-legend" class="graph-legend"></div>
                         </div>
                         <div id="connections-empty" class="empty-state">Add at least 2 documents, then click "Refresh Connections" to discover relationships.</div>
                     </div>
                     <aside class="topic-panel">
-                        <h3>Topic Correlations</h3>
-                        <p class="topic-panel-copy">Semantically similar topics found across your uploaded documents.</p>
-                        <div id="topic-correlation-list" class="topic-correlation-list">
-                            <p class="empty-state">Upload documents with overlapping ideas to see topic clusters.</p>
+                        <h3>Documents</h3>
+                        <p class="topic-panel-copy">Choose which documents appear on the map.</p>
+                        <div class="graph-doc-filter-actions">
+                            <button id="graph-docs-all" class="btn btn-secondary" type="button">All</button>
+                            <button id="graph-docs-none" class="btn btn-secondary" type="button">None</button>
                         </div>
+                        <div id="graph-doc-filter" class="graph-doc-filter"></div>
+                        <h3>Clusters</h3>
+                        <div id="community-list" class="topic-correlation-list"></div>
+                        <h3>Bridge Questions</h3>
+                        <p class="topic-panel-copy">Disconnected areas of your knowledge — ask a question that links them.</p>
+                        <div id="gap-list" class="topic-correlation-list"></div>
                     </aside>
                 </div>
             </div>
@@ -225,6 +241,7 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/static/vendor/cytoscape.min.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>

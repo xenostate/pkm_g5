@@ -1436,3 +1436,36 @@ body {
     outline: 2px solid #60a5fa;
     border-radius: 12px;
 }
+/* ── Knowledge Map (Cytoscape) ──────────────────────────────────────────── */
+#cy-wrap { position: relative; flex: 1; min-height: 560px; border-radius: var(--radius-lg); background: #0c0e13; border: 1px solid var(--border); overflow: hidden; }
+#cy { position: absolute; inset: 0; }
+.graph-toolbar { display: flex; gap: 14px; align-items: center; padding: 8px 2px 12px; flex-wrap: wrap; }
+.graph-toolbar input[type="search"] { flex: 0 0 190px; padding: 7px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: var(--font); font-size: 0.85rem; outline: none; }
+.graph-toolbar input[type="search"]:focus { border-color: #c8a23f; }
+.graph-slider-label { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
+.graph-slider-label span { font-family: monospace; color: var(--text); min-width: 36px; }
+.graph-slider-label input[type="range"] { width: 110px; accent-color: #c8a23f; }
+.graph-layer-toggles { display: flex; gap: 6px; flex-wrap: wrap; }
+.graph-ego-banner { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 10; display: none; font-size: 0.8rem; color: #0c0e13; background: #e8b34b; border-radius: 99px; padding: 5px 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 18px rgba(232, 179, 75, 0.35); }
+.graph-ego-banner.show { display: block; }
+.graph-legend { position: absolute; left: 12px; bottom: 10px; z-index: 10; display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.72rem; color: var(--text-secondary); background: rgba(12, 14, 19, 0.8); backdrop-filter: blur(5px); border: 1px solid var(--border); border-radius: 9px; padding: 7px 12px; max-width: calc(100% - 24px); }
+.graph-legend span { display: flex; align-items: center; gap: 5px; }
+.graph-legend .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.graph-legend .line-swatch { display: inline-block; width: 15px; height: 0; border-top: 2px solid #7a7a88; }
+.graph-legend .line-swatch.dashed { border-top-style: dashed; border-color: #c8a23f; }
+.graph-legend .line-swatch.dotted { border-top-style: dotted; border-color: #4e79a7; border-top-width: 3px; }
+.graph-doc-filter-actions { display: flex; gap: 6px; margin-bottom: 8px; }
+.graph-doc-filter-actions .btn { padding: 3px 12px; font-size: 0.75rem; }
+.graph-doc-filter { display: flex; flex-direction: column; gap: 2px; margin-bottom: 16px; max-height: 220px; overflow-y: auto; }
+.graph-doc-filter label { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text); padding: 5px 7px; border-radius: 7px; cursor: pointer; }
+.graph-doc-filter label:hover { background: var(--surface-hover); }
+.graph-doc-filter input[type="checkbox"] { accent-color: #c8a23f; }
+.graph-doc-filter .doc-filter-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cluster-row { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; }
+.cluster-row:hover, .cluster-row.active { background: var(--surface-hover); }
+.cluster-row .swatch { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.cluster-row .count { margin-left: auto; font-family: monospace; font-size: 0.72rem; color: var(--text-secondary); }
+.gap-card { border: 1px dashed #9a7836; border-radius: 10px; padding: 10px 11px; margin-bottom: 8px; font-size: 0.8rem; line-height: 1.55; }
+.gap-card .gap-pair { font-weight: 600; color: #e8b34b; margin-bottom: 3px; font-size: 0.82rem; }
+.gap-card .gap-why { color: var(--text-secondary); font-size: 0.76rem; }
+.gap-card .btn { margin-top: 7px; padding: 3px 12px; font-size: 0.75rem; }
