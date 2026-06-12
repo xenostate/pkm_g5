@@ -450,6 +450,89 @@ def build_graph_connections(kb: dict | None, top_docs: list[str]) -> list[dict]:
     return graph_links
 
 
+_GLOBAL_QUESTION_RE = re.compile(
+    r"전체|전반|모든\s*(문서|내용|자료)|주제들|overall|themes?\b|all\s+(my\s+)?documents|across\s+(all\s+)?documents",
+    re.IGNORECASE,
+)
+
+
+def is_global_question(query: str) -> bool:
+    """Heuristic: does the question ask about the whole knowledge base?"""
+    return len(query) <= 200 and bool(_GLOBAL_QUESTION_RE.search(query))
+
+
+def answer_global_question(query: str, kb: dict, embed_fn=None) -> dict:
+    """LazyGraphRAG-style global answer: summarize on demand from the concept
+    communities instead of retrieving individual chunks."""
+    from scripts.graph import build_graph_payload
+
+    payload = build_graph_payload(kb, embed_fn=embed_fn)
+
+    members: dict[int, list[dict]] = {}
+    for node in payload["nodes"]:
+        members.setdefault(node.get("community", -1), []).append(node)
+
+    sections = []
+    rep_docs: list[tuple[str, str]] = []  # (doc_id, title) one per community
+    for comm in payload["communities"][:8]:
+        nodes = members.get(comm["id"], [])
+        if len(nodes) < 2:
+            continue
+        concepts = [n["label"] for n in sorted(nodes, key=lambda n: -n.get("centrality", 0))[:8]]
+        doc_titles, doc_ids = [], []
+        for n in nodes:
+            for doc_id, title in zip(n.get("doc_ids", []), n.get("docs", [])):
+                if title not in doc_titles:
+                    doc_titles.append(title)
+                    doc_ids.append(doc_id)
+        sections.append(f"## {comm['label']}\nConcepts: {', '.join(concepts)}\n"
+                        f"Documents: {', '.join(doc_titles[:5])}")
+        if doc_ids:
+            rep_docs.append((doc_ids[0], doc_titles[0]))
+
+    summaries = []
+    for doc_id, doc in list(kb.get("documents", {}).items())[:10]:
+        if doc.get("summary"):
+            summaries.append(f"[{doc.get('title', doc_id)}] {doc['summary'][:600]}")
+
+    context = ("# Knowledge map (concept clusters)\n" + "\n\n".join(sections) +
+               "\n\n# Document summaries\n" + "\n\n".join(summaries))[:9000]
+
+    prompt = f"""You are a learning assistant. The user asks a question about their whole
+knowledge base. Below is a map of their knowledge: concept clusters discovered
+across documents, plus per-document summaries. Answer using this map —
+describe the main themes, how clusters relate, and where coverage is thin.
+Answer in the same language as the user's question.
+
+{context}
+
+Question:
+{query}"""
+
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=RAG_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+        max_tokens=1500,
+    )
+
+    seen = set()
+    sources = []
+    for doc_id, title in rep_docs:
+        if doc_id not in seen:
+            seen.add(doc_id)
+            sources.append({"title": title, "doc_id": doc_id, "score": 1.0})
+
+    return {
+        "answer": resp.choices[0].message.content,
+        "sources": sources,
+        "confidence": "high" if sections else "low",
+        "related_docs": [],
+        "connections": [],
+    }
+
+
 def answer_question(query: str, conversation_history: list = None, model=None, kb: dict | None = None,
                     embed_fn=None) -> dict:
     """
@@ -459,6 +542,13 @@ def answer_question(query: str, conversation_history: list = None, model=None, k
 
     Returns: {answer, sources, confidence, related_docs, connections}
     """
+    # whole-knowledge-base questions answer from the concept map, not chunks
+    if kb is not None and len(kb.get("documents", {})) >= 3 and is_global_question(query):
+        try:
+            return answer_global_question(query, kb, embed_fn=embed_fn)
+        except Exception:
+            pass  # fall back to chunk retrieval
+
     retrieval = retrieve(query, top_k=TOP_K, model=model)
 
     # graph fusion: rescore chunks by PPR document relevance (never fatal)
