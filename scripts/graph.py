@@ -60,3 +60,36 @@ def canonicalize_concepts(kb: dict, embed_fn, threshold: float = 0.86) -> dict:
 
     kb["concept_index"] = index
     return index
+
+
+# ── Graph construction ─────────────────────────────────────────────────────
+
+def build_graph(kb: dict) -> nx.Graph:
+    """Document + canonical-concept bipartite graph with doc-doc similarity edges."""
+    G = nx.Graph()
+    index = kb.get("concept_index", {})
+
+    for doc_id, doc in kb.get("documents", {}).items():
+        G.add_node(doc_id, kind="document", label=doc.get("title", doc_id),
+                   source_type=doc.get("source_type", ""), created_at=doc.get("added_at", ""))
+
+    for doc_id, doc in kb.get("documents", {}).items():
+        for raw in doc.get("concepts", []):
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            canonical = index.get(raw.strip().lower(), raw.strip())
+            node_id = f"concept::{canonical}"
+            if not G.has_node(node_id):
+                G.add_node(node_id, kind="concept", label=canonical, created_at=doc.get("added_at", ""))
+            if G.has_edge(doc_id, node_id):
+                G.edges[doc_id, node_id]["weight"] += 1.0
+            else:
+                G.add_edge(doc_id, node_id, kind="concept", weight=1.0, created_at=doc.get("added_at", ""))
+
+        for conn in doc.get("connections", []):
+            other = conn.get("doc_id")
+            if other and G.has_node(other) and not G.has_edge(doc_id, other):
+                G.add_edge(doc_id, other, kind="similarity",
+                           weight=float(conn.get("similarity", 0.0)),
+                           label=conn.get("description", ""), created_at=doc.get("added_at", ""))
+    return G
