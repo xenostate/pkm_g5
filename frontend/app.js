@@ -21,7 +21,7 @@ const graphState = {
     cy: null,
     payload: null,
     topK: 3,              // max co-occurrence links kept per concept
-    layers: { cooccur: true, triple: true, trail: true },
+    layers: { triple: true, semantic: true, cooccur: false, trail: true },
     showBadges: true,     // show source-document badges under concept labels
     dateCut: null,        // null = now (no temporal filter)
     dateRange: null,      // [minMs, maxMs] from payload
@@ -925,8 +925,9 @@ function initConnections() {
     });
 
     const layerButtons = {
-        "graph-show-cooccur": "cooccur",
         "graph-show-relations": "triple",
+        "graph-show-semantic": "semantic",
+        "graph-show-cooccur": "cooccur",
         "graph-show-trails": "trail",
     };
     Object.entries(layerButtons).forEach(([btnId, layer]) => {
@@ -1023,35 +1024,51 @@ function graphCyElements(payload) {
     const candidates = payload.edges.filter(e =>
         ids.has(e.source) && ids.has(e.target) && layers[e.kind] !== false);
 
-    // co-occurrence edges: keep only each node's top-K strongest to avoid
-    // within-document cliques turning the map into a hairball
-    const cooccur = candidates.filter(e => e.kind === "cooccur")
-        .sort((a, b) => b.weight - a.weight);
-    const perNode = new Map();
-    const kept = [];
-    for (const e of cooccur) {
-        const cs = perNode.get(e.source) || 0;
-        const ct = perNode.get(e.target) || 0;
-        if (cs < topK || ct < topK) {
-            kept.push(e);
-            perNode.set(e.source, cs + 1);
-            perNode.set(e.target, ct + 1);
+    // dense kinds (cooccur/semantic) keep only each node's top-K strongest
+    // so within-document cliques never turn the map into a hairball
+    const pruneTopK = (kind) => {
+        const pool = candidates.filter(e => e.kind === kind).sort((a, b) => b.weight - a.weight);
+        const perNode = new Map();
+        const kept = [];
+        for (const e of pool) {
+            const cs = perNode.get(e.source) || 0;
+            const ct = perNode.get(e.target) || 0;
+            if (cs < topK || ct < topK) {
+                kept.push(e);
+                perNode.set(e.source, cs + 1);
+                perNode.set(e.target, ct + 1);
+            }
         }
-    }
-    const others = candidates.filter(e => e.kind !== "cooccur");
+        return kept;
+    };
+    const denseKinds = ["cooccur", "semantic"];
+    const kept = denseKinds.flatMap(pruneTopK);
+    const others = candidates.filter(e => !denseKinds.includes(e.kind));
 
-    const weights = cooccur.map(e => e.weight);
-    const wMin = Math.min(...weights, 1), wMax = Math.max(...weights, 1.001);
-    const edges = [...kept, ...others].map(e => ({
-        data: {
-            ...e,
-            norm: (e.weight - wMin) / (wMax - wMin),
-            label: e.kind === "cooccur"
-                ? (e.shared_docs || []).join(" · ")
-                : (e.label || e.kind),
-        },
-    }));
-    return [...nodes, ...edges];
+    const normFor = {};
+    denseKinds.forEach(kind => {
+        const ws = candidates.filter(e => e.kind === kind).map(e => e.weight);
+        normFor[kind] = [Math.min(...ws, 1), Math.max(...ws, 1.001)];
+    });
+    const edges = [...kept, ...others].map(e => {
+        const [wMin, wMax] = normFor[e.kind] || [0, 1];
+        return {
+            data: {
+                ...e,
+                norm: (e.weight - wMin) / (wMax - wMin),
+                label: e.kind === "cooccur"
+                    ? (e.shared_docs || []).join(" · ")
+                    : e.kind === "semantic"
+                        ? `semantic ${e.weight.toFixed(2)}`
+                        : (e.label || e.kind),
+            },
+        };
+    });
+    // drop nodes that end up isolated after layer filtering and top-K pruning
+    const connected = new Set();
+    edges.forEach(e => { connected.add(e.data.source); connected.add(e.data.target); });
+    const visibleNodes = nodes.filter(n => connected.has(n.data.id));
+    return [...visibleNodes, ...edges];
 }
 
 function rebuildGraphView() {
@@ -1080,8 +1097,11 @@ function rebuildGraphView() {
             { selector: "edge", style: { "curve-style": "haystack", "haystack-radius": 0.3,
                 "line-color": "#3a3f50", "width": 1, "opacity": 0.75 }},
             { selector: "edge[kind='cooccur']", style: {
-                "line-color": "#565c70",
-                "width": (ele) => 1 + ele.data("norm") * 3.5 }},
+                "line-style": "dashed", "line-color": "#3d4252",
+                "width": (ele) => 1 + ele.data("norm") * 2 }},
+            { selector: "edge[kind='semantic']", style: {
+                "line-color": "#8a93b8",
+                "width": (ele) => 1.2 + ele.data("norm") * 3 }},
             { selector: "edge[kind='triple']", style: {
                 "line-color": (ele) => GRAPH_CAT_COLORS[ele.data("category")] || "#6b6b75", "width": 2,
                 "target-arrow-shape": "triangle", "arrow-scale": 0.8, "curve-style": "bezier",
@@ -1162,14 +1182,21 @@ function renderGraphLegend(payload) {
     const legendEl = document.getElementById("graph-legend");
     const commLabels = {};
     payload.communities.forEach(c => { commLabels[c.id] = c.label; });
-    const seen = new Set();
-    const items = [];
-    payload.nodes.forEach(n => {
-        if (n.community < 0 || seen.has(n.community)) return;
-        seen.add(n.community);
-        const color = GRAPH_PALETTE[n.community % GRAPH_PALETTE.length];
-        items.push(`<span><span class="swatch" style="background:${color}"></span>${escapeHtml(commLabels[n.community] || `cluster ${n.community}`)}</span>`);
+    // count only nodes actually on screen so the legend reflects the view
+    const counts = new Map();
+    if (graphState.cy) {
+        graphState.cy.nodes().forEach(n => {
+            const c = n.data("community");
+            if (c >= 0) counts.set(c, (counts.get(c) || 0) + 1);
+        });
+    }
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const items = top.map(([cid]) => {
+        const color = GRAPH_PALETTE[cid % GRAPH_PALETTE.length];
+        return `<span><span class="swatch" style="background:${color}"></span>${escapeHtml(commLabels[cid] || `cluster ${cid}`)}</span>`;
     });
+    const rest = counts.size - top.length;
+    if (rest > 0) items.push(`<span>+${rest} more</span>`);
     legendEl.innerHTML = items.join("");
 }
 

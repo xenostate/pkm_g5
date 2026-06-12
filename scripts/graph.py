@@ -298,11 +298,14 @@ def build_graph_payload(kb: dict, embed_fn=None) -> dict:
     communities = []
     for cid, members in sorted(comm_nodes.items()):
         top = max(members, key=lambda n: G.nodes[n].get("centrality", 0))
+        top_label = G.nodes[top].get("label", str(cid))
+        # cache key = top node label: stable across runs, unlike community ids
         communities.append({
             "id": cid,
-            "label": cached_labels.get(str(cid)) or G.nodes[top].get("label", str(cid)),
+            "label": cached_labels.get(_community_key(top_label)) or top_label,
             "node_count": len(members),
         })
+    communities.sort(key=lambda c: -c["node_count"])
 
     nodes = [{
         "id": n, "label": d.get("label", n), "kind": d.get("kind", "concept"),
@@ -339,13 +342,23 @@ def build_graph_payload(kb: dict, embed_fn=None) -> dict:
 
 # ── Community labels (LLM, cached) ─────────────────────────────────────────
 
-def label_communities(kb: dict, payload: dict, llm_fn) -> int:
+def _community_key(top_label: str) -> str:
+    """Stable cache key for a community: its top-centrality node label."""
+    return f"top::{top_label.strip().lower()}"
+
+
+def label_communities(kb: dict, payload: dict, llm_fn, min_size: int = 3) -> int:
     """Fill kb["graph_cache"]["community_labels"] for unlabeled communities.
 
-    llm_fn: str prompt -> str label. One call per unlabeled community; failures
-    are swallowed so labeling can never break a refresh. Returns labels added.
+    llm_fn: str prompt -> str label. One call per unlabeled community of at
+    least min_size nodes; failures are swallowed so labeling can never break a
+    refresh. Cache keys are top-node labels (stable), not community ids.
+    Returns labels added.
     """
     cache = kb.setdefault("graph_cache", {}).setdefault("community_labels", {})
+    # prune legacy id-keyed entries from the document-centric era
+    for key in [k for k in cache if not k.startswith("top::")]:
+        cache.pop(key)
 
     members_by_cid = {}
     for node in payload.get("nodes", []):
@@ -354,9 +367,13 @@ def label_communities(kb: dict, payload: dict, llm_fn) -> int:
     added = 0
     for comm in payload.get("communities", []):
         cid = comm["id"]
-        if cid < 0 or str(cid) in cache:
-            continue
         members = members_by_cid.get(cid, [])
+        if cid < 0 or len(members) < min_size:
+            continue
+        top = max(members, key=lambda n: n.get("centrality", 0))
+        key = _community_key(top.get("label", str(cid)))
+        if key in cache:
+            continue
         titles = []
         for n in members:
             for title in n.get("docs", []):
@@ -378,6 +395,6 @@ def label_communities(kb: dict, payload: dict, llm_fn) -> int:
         except Exception:
             continue
         if label:
-            cache[str(cid)] = label[:60]
+            cache[key] = label[:60]
             added += 1
     return added

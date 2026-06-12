@@ -41,8 +41,8 @@ def test_synonyms_collapse_into_one_concept_node(sample_kb, fake_embed):
 def test_cached_community_labels_used(sample_kb, fake_embed):
     canonicalize_concepts(sample_kb, embed_fn=fake_embed, threshold=0.9)
     base = build_graph_payload(sample_kb, embed_fn=fake_embed)
-    cid = base["communities"][0]["id"]
-    sample_kb["graph_cache"] = {"community_labels": {str(cid): "Custom Label"}}
+    top_label = base["communities"][0]["label"]
+    sample_kb["graph_cache"] = {"community_labels": {f"top::{top_label.lower()}": "Custom Label"}}
     payload = build_graph_payload(sample_kb, embed_fn=fake_embed)
     assert any(c["label"] == "Custom Label" for c in payload["communities"])
 
