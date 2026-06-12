@@ -312,7 +312,7 @@ def ingest_text(text: str, title: str, model=None) -> dict:
 
     chunk_count = _embed_and_store(
         doc_id, chunks,
-        {"source_type": "text", "source": None, "title": title},
+        {"source_type": "text", "source": "", "title": title},
         model=model,
     )
 
