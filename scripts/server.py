@@ -32,9 +32,9 @@ from scripts.rag import (
     load_kb, save_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
     answer_question, summarize_document, extract_concepts, generate_document_questions,
     get_questions_by_document, pick_next_question, record_question_result,
-    refresh_missing_concepts, refresh_all_connections,
+    refresh_missing_concepts, refresh_all_connections, get_openai_client,
 )
-from scripts.graph import canonicalize_concepts, build_graph_payload
+from scripts.graph import canonicalize_concepts, build_graph_payload, label_communities
 from scripts.domain_context import (
     ensure_domain, get_current_domain, list_domains, migrate_legacy_data_to_general,
     set_current_domain, reset_current_domain,
@@ -619,12 +619,32 @@ async def get_connections():
     return {"connections": all_connections}
 
 
+def _label_communities_llm(prompt: str) -> str:
+    """One short completion for a community label."""
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=RAG_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+        max_tokens=20,
+    )
+    return resp.choices[0].message.content or ""
+
+
 @app.post("/api/connections/refresh")
 async def refresh_connections():
     kb = _get_domain_kb()
     concept_updates = await asyncio.to_thread(refresh_missing_concepts, kb, get_document_chunks)
     refreshed = await asyncio.to_thread(refresh_all_connections, kb, embed_model, True)
     kb_cache[get_current_domain()] = refreshed
+
+    def _label():
+        canonicalize_concepts(kb, embed_fn=_embed_labels)
+        payload = build_graph_payload(kb)
+        if label_communities(kb, payload, _label_communities_llm):
+            save_kb(kb)
+
+    await asyncio.to_thread(_label)
     return {"status": "refreshed", "document_count": len(kb["documents"]), "concepts_backfilled": concept_updates}
 
 

@@ -186,3 +186,44 @@ def build_graph_payload(kb: dict) -> dict:
         )
 
     return {"nodes": nodes, "edges": edges, "communities": communities, "gaps": gaps}
+
+
+# ── Community labels (LLM, cached) ─────────────────────────────────────────
+
+def label_communities(kb: dict, payload: dict, llm_fn) -> int:
+    """Fill kb["graph_cache"]["community_labels"] for unlabeled communities.
+
+    llm_fn: str prompt -> str label. One call per unlabeled community; failures
+    are swallowed so labeling can never break a refresh. Returns labels added.
+    """
+    cache = kb.setdefault("graph_cache", {}).setdefault("community_labels", {})
+
+    members_by_cid = {}
+    for node in payload.get("nodes", []):
+        members_by_cid.setdefault(node.get("community", -1), []).append(node)
+
+    added = 0
+    for comm in payload.get("communities", []):
+        cid = comm["id"]
+        if cid < 0 or str(cid) in cache:
+            continue
+        members = members_by_cid.get(cid, [])
+        titles = [n["label"] for n in members if n.get("kind") == "document"][:5]
+        concepts = [n["label"] for n in members if n.get("kind") != "document"][:8]
+        if not titles and not concepts:
+            continue
+        prompt = (
+            "Give a short topic label (max 4 words, same language as the titles) "
+            "for a cluster of documents.\n"
+            f"Document titles: {', '.join(titles)}\n"
+            f"Key concepts: {', '.join(concepts)}\n"
+            "Reply with the label only."
+        )
+        try:
+            label = (llm_fn(prompt) or "").strip().strip('"')
+        except Exception:
+            continue
+        if label:
+            cache[str(cid)] = label[:60]
+            added += 1
+    return added
