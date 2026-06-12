@@ -13,26 +13,25 @@ let questionDocuments = [];
 let activeQuestionDocId = null;
 let activeQuestion = null;
 let lastQuestionResult = null;
-const knowledgeMapState = {
-    scale: 1,
-    minScale: 0.75,
-    maxScale: 2.5,
-    step: 0.2,
+const GRAPH_PALETTE = ["#e15759", "#4e79a7", "#59a14f", "#f28e2b", "#b07aa1",
+                       "#76b7b2", "#edc948", "#ff9da7", "#9c755f", "#bab0ac"];
+const GRAPH_CAT_COLORS = { "is-a": "#4e79a7", "part-of": "#59a14f", "uses": "#76b7b2",
+                           "contrasts": "#e15759", "causes": "#f28e2b", "related": "#6b6b75" };
+const graphState = {
+    cy: null,
     payload: null,
-    panX: 0,
-    panY: 0,
-    isDragging: false,
-    dragStartX: 0,
-    dragStartY: 0,
-    hoverTargets: [],
-    showSimilarity: true,
-    showConcepts: true,
-    showTopics: true,
+    threshold: 0.5,
+    layers: { concept: true, similarity: true, triple: true, trail: true },
+    showLowDegree: false,
+    dateCut: null,        // null = now (no temporal filter)
+    dateRange: null,      // [minMs, maxMs] from payload
+    selectedDocs: null,   // Set of doc ids visible on the map; null = all
+    ego: null,
 };
-const KNOWLEDGE_MAP_STORAGE_KEY = "pkm_knowledge_map_view";
-let knowledgeMapAutoRefreshTried = false;
 
-restoreKnowledgeMapView();
+function graphDocFilterKey() {
+    return `pkm_graph_docs_${currentDomain}`;
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
@@ -149,7 +148,7 @@ function resetDomainScopedState() {
     activeQuestionDocId = null;
     activeQuestion = null;
     lastQuestionResult = null;
-    knowledgeMapAutoRefreshTried = false;
+    graphState.payload = null;
 }
 
 // ── Router ─────────────────────────────────────────────────────────────────
@@ -889,404 +888,374 @@ function toggleSummary(header) {
 // ── Connections / Knowledge Map ────────────────────────────────────────────
 
 function initConnections() {
-    const canvas = document.getElementById("connections-canvas");
-    const tooltip = document.getElementById("connections-tooltip");
-
     document.getElementById("refresh-connections-btn").addEventListener("click", async () => {
         showLoading("Computing knowledge connections...");
         try {
             const res = await apiFetch("/api/connections/refresh", { method: "POST" });
             if (!res.ok) throw new Error("Refresh failed");
-            const data = await res.json();
             await loadDocuments();
-            renderConnections();
-            if (data.concepts_backfilled) {
-                alert(`Refreshed connections and backfilled concepts for ${data.concepts_backfilled} document(s).`);
-            }
+            await renderConnections();
         } catch (err) {
             alert(`Error: ${err.message}`);
         }
         hideLoading();
     });
 
-    document.getElementById("connections-zoom-in").addEventListener("click", () => {
-        setKnowledgeMapScale(knowledgeMapState.scale + knowledgeMapState.step);
+    document.getElementById("graph-threshold").addEventListener("input", (e) => {
+        graphState.threshold = parseFloat(e.target.value);
+        document.getElementById("graph-threshold-value").textContent = graphState.threshold.toFixed(2);
+        rebuildGraphView();
     });
 
-    document.getElementById("connections-zoom-out").addEventListener("click", () => {
-        setKnowledgeMapScale(knowledgeMapState.scale - knowledgeMapState.step);
-    });
-
-    document.getElementById("connections-zoom-reset").addEventListener("click", () => {
-        setKnowledgeMapScale(1);
-    });
-
-    document.getElementById("toggle-similarity").addEventListener("click", () => {
-        toggleKnowledgeMapLayer("showSimilarity", "toggle-similarity");
-    });
-
-    document.getElementById("toggle-concepts").addEventListener("click", () => {
-        toggleKnowledgeMapLayer("showConcepts", "toggle-concepts");
-    });
-
-    document.getElementById("toggle-topics").addEventListener("click", () => {
-        toggleKnowledgeMapLayer("showTopics", "toggle-topics");
-    });
-
-    canvas.addEventListener("wheel", (event) => {
-        event.preventDefault();
-        const delta = event.deltaY < 0 ? knowledgeMapState.step : -knowledgeMapState.step;
-        setKnowledgeMapScale(knowledgeMapState.scale + delta);
-    }, { passive: false });
-
-    canvas.addEventListener("mousedown", (event) => {
-        knowledgeMapState.isDragging = true;
-        knowledgeMapState.dragStartX = event.clientX;
-        knowledgeMapState.dragStartY = event.clientY;
-        canvas.classList.add("dragging");
-        hideConnectionsTooltip();
-    });
-
-    canvas.addEventListener("mousemove", (event) => {
-        if (knowledgeMapState.isDragging) {
-            const dx = event.clientX - knowledgeMapState.dragStartX;
-            const dy = event.clientY - knowledgeMapState.dragStartY;
-            knowledgeMapState.dragStartX = event.clientX;
-            knowledgeMapState.dragStartY = event.clientY;
-            knowledgeMapState.panX += dx;
-            knowledgeMapState.panY += dy;
-            persistKnowledgeMapView();
-            drawConnectionsMap();
-            return;
+    let dateDebounce = null;
+    document.getElementById("graph-date").addEventListener("input", (e) => {
+        const pct = parseInt(e.target.value, 10);
+        const valueEl = document.getElementById("graph-date-value");
+        if (pct >= 100 || !graphState.dateRange) {
+            graphState.dateCut = null;
+            valueEl.textContent = "now";
+        } else {
+            const [min, max] = graphState.dateRange;
+            const cut = new Date(min + (max - min) * pct / 100);
+            graphState.dateCut = cut.toISOString();
+            valueEl.textContent = graphState.dateCut.slice(0, 10);
         }
-
-        const hit = findKnowledgeMapHoverTarget(event);
-        if (!hit) {
-            canvas.style.cursor = knowledgeMapState.scale > 1 ? "grab" : "default";
-            hideConnectionsTooltip();
-            return;
-        }
-
-        canvas.style.cursor = "pointer";
-        showConnectionsTooltip(hit, event.clientX, event.clientY, tooltip);
+        clearTimeout(dateDebounce);
+        dateDebounce = setTimeout(rebuildGraphView, 150);
     });
 
-    canvas.addEventListener("click", (event) => {
-        const hit = findKnowledgeMapHoverTarget(event);
-
-        if (!hit || hit.kind !== "document") return;
-
-        openSummaryFromKnowledgeMap(hit.title);
-    });
-
-    const stopDragging = () => {
-        knowledgeMapState.isDragging = false;
-        canvas.classList.remove("dragging");
-        canvas.style.cursor = knowledgeMapState.scale > 1 ? "grab" : "default";
+    const layerButtons = {
+        "graph-show-concepts": "concept",
+        "graph-show-similarity": "similarity",
+        "graph-show-relations": "triple",
+        "graph-show-trails": "trail",
     };
-
-    canvas.addEventListener("mouseup", stopDragging);
-    canvas.addEventListener("mouseleave", () => {
-        stopDragging();
-        hideConnectionsTooltip();
+    Object.entries(layerButtons).forEach(([btnId, layer]) => {
+        document.getElementById(btnId).addEventListener("click", (e) => {
+            e.target.classList.toggle("active");
+            graphState.layers[layer] = e.target.classList.contains("active");
+            rebuildGraphView();
+        });
     });
-    window.addEventListener("mouseup", stopDragging);
 
-    updateKnowledgeMapZoomLabel();
-    syncKnowledgeMapToggleButtons();
+    document.getElementById("graph-show-low-degree").addEventListener("click", (e) => {
+        e.target.classList.toggle("active");
+        graphState.showLowDegree = e.target.classList.contains("active");
+        rebuildGraphView();
+    });
+
+    document.getElementById("graph-fit").addEventListener("click", () => {
+        if (graphState.cy) graphState.cy.fit(undefined, 40);
+    });
+
+    document.getElementById("graph-search").addEventListener("input", (e) => {
+        applyGraphSearch(e.target.value.trim().toLowerCase());
+    });
+    document.getElementById("graph-search").addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" || !graphState.cy) return;
+        const hit = graphState.cy.nodes(".search-hit").first();
+        if (hit.length) graphState.cy.animate({ center: { eles: hit }, zoom: 1.6, duration: 300 });
+    });
+
+    document.getElementById("graph-docs-all").addEventListener("click", () => setGraphDocFilter(null));
+    document.getElementById("graph-docs-none").addEventListener("click", () => setGraphDocFilter(new Set()));
+
+    document.getElementById("graph-ego-banner").addEventListener("click", exitGraphEgo);
 }
 
 async function renderConnections() {
-    const canvas = document.getElementById("connections-canvas");
     const emptyEl = document.getElementById("connections-empty");
-    const legendEl = document.getElementById("connections-legend");
-    const topicListEl = document.getElementById("topic-correlation-list");
-    const ctx = canvas.getContext("2d");
+    const wrapEl = document.getElementById("cy-wrap");
 
-    let connections = [];
-    let conceptLinks = [];
-    let knowledgeBase = { documents: {}, links: [] };
+    let payload = { nodes: [], edges: [], communities: [], gaps: [] };
     try {
-        const [connectionsRes, kbRes] = await Promise.all([
-            apiFetch("/api/connections"),
-            apiFetch("/api/knowledge-base"),
-        ]);
-        const connectionsData = await connectionsRes.json();
-        const kbData = await kbRes.json();
-        connections = connectionsData.connections || [];
-        conceptLinks = kbData.links || [];
-        knowledgeBase = kbData || knowledgeBase;
+        const res = await apiFetch("/api/graph");
+        if (res.ok) payload = await res.json();
     } catch (err) {
-        console.error("Failed to load connections:", err);
+        console.error("Failed to load graph:", err);
     }
+    graphState.payload = payload;
 
-    const orbitTopicNodes = buildOrbitTopicNodes(knowledgeBase);
-    const topicBridges = buildTopicBridges(orbitTopicNodes);
-    const effectiveConceptLinks = conceptLinks.length ? conceptLinks : buildSharedConceptLinksFromTopicBridges(topicBridges);
-    renderTopicCorrelations(topicBridges, topicListEl);
+    // temporal range from payload timestamps
+    const stamps = payload.nodes.map(n => Date.parse(n.created_at)).filter(t => !isNaN(t));
+    graphState.dateRange = stamps.length ? [Math.min(...stamps), Math.max(...stamps)] : null;
 
-    const needsAutoRefresh = documents.length > 0 && !knowledgeMapAutoRefreshTried && (
-        connections.length === 0 ||
-        orbitTopicNodes.length === 0 ||
-        (knowledgeMapState.showSimilarity && documents.length > 1 && connections.length < 1)
-    );
+    // restore per-domain document filter
+    try {
+        const saved = localStorage.getItem(graphDocFilterKey());
+        graphState.selectedDocs = saved ? new Set(JSON.parse(saved)) : null;
+    } catch { graphState.selectedDocs = null; }
 
-    if (needsAutoRefresh) {
-        knowledgeMapAutoRefreshTried = true;
-        try {
-            await apiFetch("/api/connections/refresh", { method: "POST" });
-            await loadDocuments();
-            return renderConnections();
-        } catch (err) {
-            console.error("Automatic knowledge-map refresh failed:", err);
-        }
-    }
+    const docNodes = payload.nodes.filter(n => n.kind === "document");
+    wrapEl.style.display = docNodes.length ? "block" : "none";
+    emptyEl.style.display = docNodes.length ? "none" : "block";
 
-    knowledgeMapState.payload = {
-        connections,
-        conceptLinks: effectiveConceptLinks,
-        orbitTopicNodes,
-        topicBridges,
-        knowledgeBase,
-    };
-
-    if (!documents.length) {
-        canvas.style.display = "none";
-        legendEl.style.display = "none";
-        emptyEl.style.display = "block";
-        return;
-    }
-
-    canvas.style.display = "block";
-    legendEl.style.display = "flex";
-    emptyEl.style.display = "none";
-
-    // Resize canvas
-    const rect = canvas.parentElement.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = Math.max(rect.height, 400);
-    drawConnectionsMap();
+    renderGraphDocFilter(docNodes);
+    renderCommunityPanel(payload);
+    renderGapPanel(payload);
+    if (docNodes.length) rebuildGraphView();
 }
 
-function drawConnectionsMap() {
-    const canvas = document.getElementById("connections-canvas");
-    const ctx = canvas.getContext("2d");
-    const payload = knowledgeMapState.payload;
+function graphCyElements(payload) {
+    const { threshold, layers, showLowDegree, dateCut, selectedDocs } = graphState;
+    const inDate = (iso) => !dateCut || !iso || isNaN(Date.parse(iso)) || iso <= dateCut;
+
+    const docs = payload.nodes.filter(n =>
+        n.kind === "document" &&
+        (selectedDocs === null || selectedDocs.has(n.id)) &&
+        inDate(n.created_at));
+    const docIds = new Set(docs.map(n => n.id));
+
+    // non-document nodes survive only if a visible doc references them
+    const adjacency = new Map();
+    payload.edges.forEach(e => {
+        if (docIds.has(e.source)) adjacency.set(e.target, (adjacency.get(e.target) || 0) + 1);
+        if (docIds.has(e.target)) adjacency.set(e.source, (adjacency.get(e.source) || 0) + 1);
+    });
+    const others = payload.nodes.filter(n =>
+        n.kind !== "document" &&
+        adjacency.has(n.id) &&
+        inDate(n.created_at) &&
+        (n.kind !== "concept" || layers.concept) &&
+        (showLowDegree || n.degree >= 2));
+
+    const nodes = [...docs, ...others].map(n => ({ data: { ...n } }));
+    const ids = new Set(nodes.map(n => n.data.id));
+    const edges = payload.edges
+        .filter(e => ids.has(e.source) && ids.has(e.target))
+        .filter(e => graphState.layers[e.kind] !== false)
+        .filter(e => e.kind !== "similarity" || e.weight >= threshold)
+        .map(e => ({ data: { ...e, label: e.label || (e.kind === "similarity" ? `similarity ${e.weight.toFixed(2)}` : e.kind) } }));
+    return [...nodes, ...edges];
+}
+
+function rebuildGraphView() {
+    const payload = graphState.payload;
     if (!payload) return;
+    graphState.ego = null;
+    document.getElementById("graph-ego-banner").classList.remove("show");
 
-    const { connections, conceptLinks, orbitTopicNodes, topicBridges, knowledgeBase } = payload;
+    if (graphState.cy) graphState.cy.destroy();
+    graphState.cy = cytoscape({
+        container: document.getElementById("cy"),
+        elements: graphCyElements(payload),
+        style: [
+            { selector: "node[kind='document']", style: {
+                "background-color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
+                "width": (ele) => 20 + ele.data("centrality") * 70,
+                "height": (ele) => 20 + ele.data("centrality") * 70,
+                "label": "data(label)", "color": "#d8dbe4", "font-size": 11,
+                "text-valign": "bottom", "text-margin-y": 7, "text-max-width": "130px", "text-wrap": "ellipsis",
+                "border-width": 2, "border-color": "#0c0e13",
+            }},
+            { selector: "node[kind='concept']", style: {
+                "shape": "round-rectangle", "background-color": "#1d2230", "border-width": 1, "border-color": "#3a4156",
+                "width": "label", "height": 18, "padding": "5px",
+                "label": "data(label)", "color": "#c8a23f", "font-size": 9.5,
+                "text-valign": "center", "text-max-width": "110px", "text-wrap": "ellipsis",
+            }},
+            { selector: "node[kind='entity']", style: {
+                "shape": "diamond", "background-color": "#27314a", "border-width": 1, "border-color": "#4a5a7a",
+                "width": 14, "height": 14,
+                "label": "data(label)", "color": "#9fb4dd", "font-size": 9,
+                "text-valign": "bottom", "text-margin-y": 4, "text-max-width": "100px", "text-wrap": "ellipsis",
+            }},
+            { selector: "edge", style: { "curve-style": "straight", "line-color": "#2c3040", "width": 1, "opacity": 0.8 }},
+            { selector: "edge[kind='similarity']", style: {
+                "line-color": "#5c6072", "width": (ele) => 1 + (ele.data("weight") - 0.3) * 4.5 }},
+            { selector: "edge[kind='concept']", style: { "line-style": "dashed", "line-color": "#574a1e", "width": 1 }},
+            { selector: "edge[kind='triple']", style: {
+                "line-color": (ele) => GRAPH_CAT_COLORS[ele.data("category")] || "#6b6b75", "width": 2,
+                "target-arrow-shape": "triangle", "arrow-scale": 0.8, "curve-style": "bezier",
+                "target-arrow-color": (ele) => GRAPH_CAT_COLORS[ele.data("category")] || "#6b6b75" }},
+            { selector: "edge[kind='trail']", style: { "line-style": "dotted", "line-color": "#4e79a7", "width": 2.5 }},
+            { selector: ".faded", style: { "opacity": 0.1, "text-opacity": 0.04 }},
+            { selector: ".hl-edge", style: {
+                "label": "data(label)", "font-size": 9, "color": "#e8b34b",
+                "text-background-color": "#0c0e13", "text-background-opacity": 0.85, "text-background-padding": "3px" }},
+            { selector: "node.search-hit", style: { "border-color": "#e8b34b", "border-width": 3 }},
+        ],
+        layout: { name: "cose", animate: false, nodeRepulsion: 60000, idealEdgeLength: 95, gravity: 0.6, padding: 40 },
+        wheelSensitivity: 0.2,
+    });
+    wireGraphInteractions();
+    renderGraphLegend(graphState.payload);
+    applyGraphSearch(document.getElementById("graph-search").value.trim().toLowerCase());
+}
 
-    // Build node positions (simple circle layout)
-    const nodes = {};
-    documents.forEach((doc, i) => {
-        const angle = (2 * Math.PI * i) / documents.length - Math.PI / 2;
-        const rx = canvas.width * (documents.length === 1 ? 0 : 0.34);
-        const ry = canvas.height * (documents.length === 1 ? 0 : 0.32);
-        nodes[doc.doc_id] = {
-            x: canvas.width / 2 + rx * Math.cos(angle),
-            y: canvas.height / 2 + ry * Math.sin(angle),
-            title: doc.title,
-            type: doc.source_type,
-            radius: 30,
-        };
+function wireGraphInteractions() {
+    const cy = graphState.cy;
+
+    cy.on("mouseover", "node", (evt) => {
+        if (graphState.ego) return;
+        const hood = evt.target.closedNeighborhood();
+        cy.elements().difference(hood).addClass("faded");
+        evt.target.connectedEdges().addClass("hl-edge");
+    });
+    cy.on("mouseout", "node", () => {
+        if (graphState.ego) return;
+        cy.elements().removeClass("faded hl-edge");
     });
 
-    orbitTopicNodes.forEach(topicNode => {
-        const docNode = nodes[topicNode.docId];
-        if (!docNode) return;
-        const orbitRadius = docNode.radius + 30 + topicNode.rank * 3;
-        const angle = topicNode.angle;
-        topicNode.x = docNode.x + orbitRadius * Math.cos(angle);
-        topicNode.y = docNode.y + orbitRadius * Math.sin(angle);
+    cy.on("tap", "node[kind='document']", (evt) => {
+        const hood = evt.target.closedNeighborhood();
+        cy.elements().difference(hood).addClass("faded");
+        hood.connectedEdges().addClass("hl-edge");
+        graphState.ego = evt.target.id();
+        document.getElementById("graph-ego-banner").classList.add("show");
+        cy.animate({ fit: { eles: hood, padding: 70 }, duration: 300 });
     });
 
-    // Clear
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.translate(knowledgeMapState.panX, knowledgeMapState.panY);
-    ctx.scale(knowledgeMapState.scale, knowledgeMapState.scale);
-    ctx.translate(-canvas.width / 2, -canvas.height / 2);
-
-    if (knowledgeMapState.showSimilarity) {
-        const strongestConnections = connections
-            .slice()
-            .sort((a, b) => b.similarity - a.similarity)
-            .slice(0, Math.max(4, documents.length + 1));
-
-        const seen = new Set();
-        strongestConnections.forEach(conn => {
-            const key = [conn.from_doc_id, conn.to_doc_id].sort().join("-");
-            if (seen.has(key)) return;
-            seen.add(key);
-
-            const from = nodes[conn.from_doc_id];
-            const to = nodes[conn.to_doc_id];
-            if (!from || !to) return;
-
-            ctx.beginPath();
-            ctx.moveTo(from.x, from.y);
-            ctx.lineTo(to.x, to.y);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(Math.max(conn.similarity, 0.18), 0.5)})`;
-            ctx.lineWidth = Math.max(1, conn.similarity * 4);
-            ctx.stroke();
-
-            const mx = (from.x + to.x) / 2;
-            const my = (from.y + to.y) / 2;
-            ctx.fillStyle = "rgba(156, 163, 175, 0.8)";
-            ctx.font = "10px Nunito, sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText((conn.similarity * 100).toFixed(0) + "%", mx, my - 4);
-        });
-    }
-
-    if (knowledgeMapState.showConcepts) {
-        conceptLinks.forEach((link, index) => {
-            const from = nodes[link.from];
-            const to = nodes[link.to];
-            if (!from || !to) return;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.setLineDash([6, 5]);
-            ctx.moveTo(from.x, from.y);
-            ctx.lineTo(to.x, to.y);
-            ctx.strokeStyle = "rgba(255, 196, 61, 0.85)";
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.restore();
-
-            const mx = (from.x + to.x) / 2;
-            const my = (from.y + to.y) / 2;
-            const concepts = Array.isArray(link.concept) ? link.concept.join(", ") : "";
-            const label = concepts.length > 28 ? concepts.substring(0, 26) + "..." : concepts;
-            if (!label) return;
-
-            const offset = index % 2 === 0 ? 12 : 24;
-            ctx.fillStyle = "rgba(255, 196, 61, 0.95)";
-            ctx.font = "11px Nunito, sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText(label, mx, my + offset);
-        });
-    }
-
-    if (knowledgeMapState.showTopics) {
-        orbitTopicNodes.forEach(topicNode => {
-            const docNode = nodes[topicNode.docId];
-            if (!docNode) return;
-            ctx.save();
-            ctx.beginPath();
-            ctx.setLineDash([2, 6]);
-            ctx.moveTo(docNode.x, docNode.y);
-            ctx.lineTo(topicNode.x, topicNode.y);
-            ctx.strokeStyle = "rgba(251, 191, 36, 0.28)";
-            ctx.lineWidth = 1.2;
-            ctx.stroke();
-            ctx.restore();
-        });
-
-        topicBridges.forEach(bridge => {
-            const from = bridge.from;
-            const to = bridge.to;
-            if (!from || !to) return;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.setLineDash([6, 5]);
-            ctx.moveTo(from.x, from.y);
-            ctx.lineTo(to.x, to.y);
-            ctx.strokeStyle = `rgba(251, 191, 36, ${Math.min(0.88, 0.32 + bridge.score * 0.45)})`;
-            ctx.lineWidth = 1 + bridge.score * 2.4;
-            ctx.stroke();
-            ctx.restore();
-
-            const mx = (from.x + to.x) / 2;
-            const my = (from.y + to.y) / 2;
-            ctx.fillStyle = "rgba(255, 221, 120, 0.92)";
-            ctx.font = "10px Nunito, sans-serif";
-            ctx.textAlign = "center";
-            const label = bridge.label.length > 26 ? bridge.label.substring(0, 24) + "..." : bridge.label;
-            ctx.fillText(label, mx, my - 6);
-        });
-    }
-
-    // Draw nodes
-    const typeColors = { pdf: "#f87171", url: "#60a5fa", text: "#4ade80" };
-
-    Object.values(nodes).forEach(node => {
-        // Outer glow
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius + 8, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-        ctx.fill();
-
-        // Main circle
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        ctx.fillStyle = typeColors[node.type] || "#6366f1";
-        ctx.fill();
-        ctx.strokeStyle = "#1c1f2e";
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        // Label
-        ctx.fillStyle = "#e4e4e7";
-        ctx.font = "13px Nunito, sans-serif";
-        ctx.textAlign = "center";
-        const label = node.title.length > 22 ? node.title.substring(0, 20) + "..." : node.title;
-        ctx.fillText(label, node.x, node.y + node.radius + 18);
+    cy.on("tap", (evt) => {
+        if (evt.target === cy && graphState.ego) exitGraphEgo();
     });
 
-    if (knowledgeMapState.showTopics) {
-        orbitTopicNodes.forEach(node => {
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, 10, 0, Math.PI * 2);
-            ctx.fillStyle = "#fbbf24";
-            ctx.fill();
-            ctx.strokeStyle = "#2b2100";
-            ctx.lineWidth = 2;
-            ctx.stroke();
+    cy.on("dbltap", "node[kind='document']", (evt) => {
+        openSummaryFromKnowledgeMap(evt.target.data("label"));
+    });
+}
 
-            ctx.fillStyle = "#f7f0d0";
-            ctx.font = "10px Nunito, sans-serif";
-            ctx.textAlign = "center";
-            const label = node.label.length > 15 ? node.label.substring(0, 13) + "..." : node.label;
-            ctx.fillText(label, node.x, node.y - 16);
-        });
+function exitGraphEgo() {
+    if (!graphState.cy) return;
+    graphState.ego = null;
+    graphState.cy.elements().removeClass("faded hl-edge");
+    document.getElementById("graph-ego-banner").classList.remove("show");
+    graphState.cy.animate({ fit: { padding: 40 }, duration: 300 });
+}
+
+function applyGraphSearch(query) {
+    const cy = graphState.cy;
+    if (!cy) return;
+    cy.nodes().removeClass("search-hit");
+    if (!graphState.ego) cy.elements().removeClass("faded");
+    if (!query) return;
+    const hits = cy.nodes().filter(n => (n.data("label") || "").toLowerCase().includes(query));
+    hits.addClass("search-hit");
+    cy.elements().difference(hits.union(hits.connectedEdges()).union(hits.neighborhood())).addClass("faded");
+}
+
+function renderGraphLegend(payload) {
+    const legendEl = document.getElementById("graph-legend");
+    const commLabels = {};
+    payload.communities.forEach(c => { commLabels[c.id] = c.label; });
+    const seen = new Set();
+    const items = [];
+    payload.nodes.forEach(n => {
+        if (n.kind !== "document" || n.community < 0 || seen.has(n.community)) return;
+        seen.add(n.community);
+        const color = GRAPH_PALETTE[n.community % GRAPH_PALETTE.length];
+        items.push(`<span><span class="swatch" style="background:${color}"></span>${escapeHtml(commLabels[n.community] || `cluster ${n.community}`)}</span>`);
+    });
+    items.push('<span><span class="line-swatch"></span>similarity</span>');
+    items.push('<span><span class="line-swatch dashed"></span>concept</span>');
+    items.push('<span><span class="line-swatch dotted"></span>trail</span>');
+    legendEl.innerHTML = items.join("");
+}
+
+function renderGraphDocFilter(docNodes) {
+    const container = document.getElementById("graph-doc-filter");
+    if (!docNodes.length) {
+        container.innerHTML = '<p class="empty-state">No documents yet.</p>';
+        return;
     }
-    ctx.restore();
+    const selected = graphState.selectedDocs;
+    container.innerHTML = docNodes.map(d => {
+        const checked = selected === null || selected.has(d.id) ? "checked" : "";
+        return `<label><input type="checkbox" data-doc-id="${d.id}" ${checked}>` +
+               `<span class="doc-filter-title" title="${escapeHtml(d.label)}">${escapeHtml(d.label)}</span></label>`;
+    }).join("");
+    container.querySelectorAll("input[type='checkbox']").forEach(box => {
+        box.addEventListener("change", () => {
+            const all = [...container.querySelectorAll("input[type='checkbox']")];
+            const checkedIds = all.filter(b => b.checked).map(b => b.dataset.docId);
+            setGraphDocFilter(checkedIds.length === all.length ? null : new Set(checkedIds), { skipRerenderFilter: true });
+        });
+    });
+}
 
-    knowledgeMapState.hoverTargets = [
-        ...Object.entries(nodes).map(([docId, node]) => {
-            const doc = knowledgeBase.documents?.[docId] || {};
-            const point = worldToScreen(node.x, node.y, canvas);
-            return {
-                kind: "document",
-                x: point.x,
-                y: point.y,
-                radius: node.radius * knowledgeMapState.scale,
-                title: doc.title || node.title,
-                meta: doc.source || doc.source_type || "document",
-                summary: doc.summary || "No summary available yet.",
-                concepts: Array.isArray(doc.concepts) ? doc.concepts.slice(0, 5) : [],
-            };
-        }),
-        ...orbitTopicNodes.map(node => {
-            const doc = knowledgeBase.documents?.[node.docId] || {};
-            const point = worldToScreen(node.x, node.y, canvas);
-            return {
-                kind: "topic",
-                x: point.x,
-                y: point.y,
-                radius: 12 * knowledgeMapState.scale,
-                title: node.label,
-                meta: doc.title || node.docId,
-                summary: "Key topic extracted from this document.",
-                concepts: [],
-            };
-        }),
-    ];
-    updateKnowledgeMapZoomLabel();
+function setGraphDocFilter(selectedDocs, opts = {}) {
+    graphState.selectedDocs = selectedDocs;
+    try {
+        if (selectedDocs === null) localStorage.removeItem(graphDocFilterKey());
+        else localStorage.setItem(graphDocFilterKey(), JSON.stringify([...selectedDocs]));
+    } catch { /* storage unavailable */ }
+    if (!opts.skipRerenderFilter && graphState.payload) {
+        renderGraphDocFilter(graphState.payload.nodes.filter(n => n.kind === "document"));
+    }
+    rebuildGraphView();
+}
+
+function renderCommunityPanel(payload) {
+    const container = document.getElementById("community-list");
+    const docCounts = {};
+    payload.nodes.forEach(n => {
+        if (n.kind === "document" && n.community >= 0) {
+            docCounts[n.community] = (docCounts[n.community] || 0) + 1;
+        }
+    });
+    const rows = payload.communities.filter(c => docCounts[c.id]);
+    if (!rows.length) {
+        container.innerHTML = '<p class="empty-state">Refresh connections to detect clusters.</p>';
+        return;
+    }
+    container.innerHTML = rows.map(c => {
+        const color = GRAPH_PALETTE[c.id % GRAPH_PALETTE.length];
+        return `<div class="cluster-row" data-community="${c.id}">` +
+               `<span class="swatch" style="background:${color}"></span>${escapeHtml(c.label)}` +
+               `<span class="count">${docCounts[c.id]} docs</span></div>`;
+    }).join("");
+    container.querySelectorAll(".cluster-row").forEach(row => {
+        row.addEventListener("click", () => {
+            const cy = graphState.cy;
+            if (!cy) return;
+            const cid = parseInt(row.dataset.community, 10);
+            const isActive = row.classList.contains("active");
+            container.querySelectorAll(".cluster-row").forEach(r => r.classList.remove("active"));
+            cy.elements().removeClass("faded");
+            if (!isActive) {
+                row.classList.add("active");
+                const members = cy.nodes().filter(n => n.data("community") === cid);
+                cy.elements().difference(members.union(members.edgesWith(members))).addClass("faded");
+            }
+        });
+    });
+}
+
+function renderGapPanel(payload) {
+    const container = document.getElementById("gap-list");
+    if (!payload.gaps.length) {
+        container.innerHTML = '<p class="empty-state">No disconnected areas — your knowledge is well linked.</p>';
+        return;
+    }
+    const commLabels = {};
+    payload.communities.forEach(c => { commLabels[c.id] = c.label; });
+    container.innerHTML = payload.gaps.map((g, i) => {
+        const labelA = commLabels[g.a] || g.label_a;
+        const labelB = commLabels[g.b] || g.label_b;
+        return `<div class="gap-card">` +
+               `<div class="gap-pair">${escapeHtml(labelA)} ↔ ${escapeHtml(labelB)}</div>` +
+               `<div class="gap-why">${escapeHtml(g.suggestion || "")}</div>` +
+               `<button class="btn btn-secondary" data-gap-index="${i}">질문하러 가기</button></div>`;
+    }).join("");
+    container.querySelectorAll("button[data-gap-index]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const g = payload.gaps[parseInt(btn.dataset.gapIndex, 10)];
+            const labelA = commLabels[g.a] || g.label_a;
+            const labelB = commLabels[g.b] || g.label_b;
+            askBridgeQuestion(`${labelA}와(과) ${labelB}는 어떤 관련이 있나요?`);
+        });
+    });
+}
+
+function askBridgeQuestion(question) {
+    window.location.hash = "chat";
+    setTimeout(() => {
+        const input = document.getElementById("chat-input");
+        if (input) {
+            input.value = question;
+            input.focus();
+        }
+    }, 150);
 }
 
 // ── Loading ────────────────────────────────────────────────────────────────
@@ -1300,272 +1269,6 @@ function hideLoading() {
     document.getElementById("loading-overlay").classList.add("hidden");
 }
 
-function buildOrbitTopicNodes(kb) {
-    const topicNodes = [];
-    Object.entries(kb.documents || {}).forEach(([docId, doc]) => {
-        const concepts = Array.isArray(doc.concepts) ? doc.concepts.filter(Boolean).slice(0, 4) : [];
-        concepts.forEach((concept, index) => {
-            const total = Math.max(concepts.length, 1);
-            topicNodes.push({
-                id: `${docId}:${index}:${concept}`,
-                docId,
-                label: concept,
-                normalized: normalizeTopic(concept),
-                tokens: tokenizeTopic(concept),
-                rank: index,
-                angle: (-Math.PI / 2) + ((2 * Math.PI) / total) * index,
-                x: 0,
-                y: 0,
-            });
-        });
-    });
-    return topicNodes;
-}
-
-function buildTopicBridges(topicNodes) {
-    const bridges = [];
-    for (let i = 0; i < topicNodes.length; i += 1) {
-        for (let j = i + 1; j < topicNodes.length; j += 1) {
-            const from = topicNodes[i];
-            const to = topicNodes[j];
-            if (from.docId === to.docId) continue;
-            const score = topicSimilarity(from, to);
-            if (score < 0.52) continue;
-            bridges.push({
-                from,
-                to,
-                score,
-                label: from.normalized === to.normalized ? from.label : `${from.label} ↔ ${to.label}`,
-            });
-        }
-    }
-
-    return bridges
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 20);
-}
-
-function buildSharedConceptLinksFromTopicBridges(topicBridges) {
-    const grouped = new Map();
-
-    topicBridges.forEach(bridge => {
-        const fromDoc = bridge.from.docId;
-        const toDoc = bridge.to.docId;
-        const key = [fromDoc, toDoc].sort().join("::");
-        if (!grouped.has(key)) {
-            grouped.set(key, {
-                from: fromDoc,
-                to: toDoc,
-                concept: [],
-                score: 0,
-            });
-        }
-
-        const entry = grouped.get(key);
-        entry.score = Math.max(entry.score, bridge.score);
-        const label = bridge.from.normalized === bridge.to.normalized
-            ? bridge.from.label
-            : `${bridge.from.label} / ${bridge.to.label}`;
-        if (!entry.concept.includes(label)) {
-            entry.concept.push(label);
-        }
-    });
-
-    return Array.from(grouped.values())
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 10)
-        .map(entry => ({
-            from: entry.from,
-            to: entry.to,
-            concept: entry.concept.slice(0, 3),
-        }));
-}
-
-function normalizeTopic(topic) {
-    return topic
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-}
-
-function tokenizeTopic(topic) {
-    return new Set(
-        normalizeTopic(topic)
-            .split(" ")
-            .filter(token => token && token.length > 2)
-    );
-}
-
-function topicSimilarity(a, b) {
-    if (!a.normalized || !b.normalized) return 0;
-    if (a.normalized === b.normalized) return 1;
-    if (a.normalized.includes(b.normalized) || b.normalized.includes(a.normalized)) return 0.86;
-
-    const intersection = [...a.tokens].filter(token => b.tokens.has(token)).length;
-    const union = new Set([...a.tokens, ...b.tokens]).size;
-    const tokenScore = union ? intersection / union : 0;
-
-    if (tokenScore > 0) return tokenScore;
-
-    const wordA = a.normalized.split(" ").filter(Boolean);
-    const wordB = b.normalized.split(" ").filter(Boolean);
-    const stemOverlap = wordA.some(left => wordB.some(right =>
-        left.startsWith(right.slice(0, Math.max(4, right.length - 2))) ||
-        right.startsWith(left.slice(0, Math.max(4, left.length - 2)))
-    ));
-
-    return stemOverlap ? 0.58 : 0;
-}
-
-function renderTopicCorrelations(topicBridges, container) {
-    if (!topicBridges.length) {
-        container.innerHTML = '<p class="empty-state">Upload documents with overlapping ideas to see topic bridges.</p>';
-        return;
-    }
-
-    const topBridges = topicBridges.slice(0, 10);
-    container.innerHTML = topBridges.map(bridge => `
-        <div class="topic-correlation-card">
-            <div class="topic-correlation-title">
-                <span>${escapeHtml(bridge.label)}</span>
-                <span class="topic-correlation-count">${Math.round(bridge.score * 100)}% match</span>
-            </div>
-            <div class="topic-correlation-pair">
-                <strong>${escapeHtml(resolveDocumentTitle(bridge.from.docId))}</strong> and
-                <strong>${escapeHtml(resolveDocumentTitle(bridge.to.docId))}</strong>
-                cover closely related topics.
-            </div>
-            <div class="topic-correlation-docs">
-                <span class="topic-correlation-doc">${escapeHtml(bridge.from.label)}</span>
-                <span class="topic-correlation-doc">${escapeHtml(bridge.to.label)}</span>
-            </div>
-        </div>
-    `).join("");
-}
-
-function resolveDocumentTitle(docId) {
-    const doc = documents.find(item => item.doc_id === docId);
-    return doc ? doc.title : docId;
-}
-
-function setKnowledgeMapScale(nextScale) {
-    const clamped = Math.min(knowledgeMapState.maxScale, Math.max(knowledgeMapState.minScale, nextScale));
-    knowledgeMapState.scale = Math.round(clamped * 100) / 100;
-    persistKnowledgeMapView();
-    updateKnowledgeMapZoomLabel();
-    if (knowledgeMapState.payload) {
-        drawConnectionsMap();
-    }
-}
-
-function updateKnowledgeMapZoomLabel() {
-    const label = document.getElementById("connections-zoom-level");
-    if (!label) return;
-    label.textContent = `${Math.round(knowledgeMapState.scale * 100)}%`;
-}
-
-function persistKnowledgeMapView() {
-    localStorage.setItem(KNOWLEDGE_MAP_STORAGE_KEY, JSON.stringify({
-        scale: knowledgeMapState.scale,
-        panX: knowledgeMapState.panX,
-        panY: knowledgeMapState.panY,
-        showSimilarity: knowledgeMapState.showSimilarity,
-        showConcepts: knowledgeMapState.showConcepts,
-        showTopics: knowledgeMapState.showTopics,
-    }));
-}
-
-function restoreKnowledgeMapView() {
-    try {
-        const raw = localStorage.getItem(KNOWLEDGE_MAP_STORAGE_KEY);
-        if (!raw) return;
-        const saved = JSON.parse(raw);
-        if (typeof saved.scale === "number") knowledgeMapState.scale = saved.scale;
-        if (typeof saved.panX === "number") knowledgeMapState.panX = saved.panX;
-        if (typeof saved.panY === "number") knowledgeMapState.panY = saved.panY;
-        if (typeof saved.showSimilarity === "boolean") knowledgeMapState.showSimilarity = saved.showSimilarity;
-        if (typeof saved.showConcepts === "boolean") knowledgeMapState.showConcepts = saved.showConcepts;
-        if (typeof saved.showTopics === "boolean") knowledgeMapState.showTopics = saved.showTopics;
-    } catch (_err) {
-        // Ignore malformed local state.
-    }
-}
-
-function toggleKnowledgeMapLayer(stateKey, buttonId) {
-    knowledgeMapState[stateKey] = !knowledgeMapState[stateKey];
-    persistKnowledgeMapView();
-    syncKnowledgeMapToggleButtons();
-    if (knowledgeMapState.payload) {
-        drawConnectionsMap();
-    }
-}
-
-function syncKnowledgeMapToggleButtons() {
-    document.getElementById("toggle-similarity")?.classList.toggle("active", knowledgeMapState.showSimilarity);
-    document.getElementById("toggle-concepts")?.classList.toggle("active", knowledgeMapState.showConcepts);
-    document.getElementById("toggle-topics")?.classList.toggle("active", knowledgeMapState.showTopics);
-}
-
-function worldToScreen(x, y, canvas) {
-    return {
-        x: (x - canvas.width / 2) * knowledgeMapState.scale + canvas.width / 2 + knowledgeMapState.panX,
-        y: (y - canvas.height / 2) * knowledgeMapState.scale + canvas.height / 2 + knowledgeMapState.panY,
-    };
-}
-
-function findKnowledgeMapHoverTarget(event) {
-    const canvas = document.getElementById("connections-canvas");
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
-    for (const target of knowledgeMapState.hoverTargets) {
-        const dx = x - target.x;
-        const dy = y - target.y;
-        if ((dx * dx) + (dy * dy) <= target.radius * target.radius) {
-            return target;
-        }
-    }
-
-    return null;
-}
-
-function showConnectionsTooltip(target, clientX, clientY, tooltip) {
-    const container = document.querySelector(".connections-container");
-    const rect = container.getBoundingClientRect();
-    const tagHtml = target.concepts.length
-        ? `<div class="connections-tooltip-tags">${target.concepts.map(concept => `<span class="connections-tooltip-tag">${escapeHtml(concept)}</span>`).join("")}</div>`
-        : "";
-
-    tooltip.innerHTML = `
-        <div class="connections-tooltip-title">${escapeHtml(target.title)}</div>
-        <div class="connections-tooltip-meta">${escapeHtml(target.meta)}</div>
-        <div class="connections-tooltip-body">${escapeHtml(target.summary || "").replace(/\. /g, ".<br><br>")}</div>
-        ${tagHtml}
-    `;
-    tooltip.classList.remove("hidden");
-
-    const offset = 14;
-    let left = clientX - rect.left + offset;
-    let top = clientY - rect.top + offset;
-
-    if (left + tooltip.offsetWidth > rect.width - 8) {
-        left = Math.max(8, clientX - rect.left - tooltip.offsetWidth - offset);
-    }
-    if (top + tooltip.offsetHeight > rect.height - 8) {
-        top = Math.max(8, clientY - rect.top - tooltip.offsetHeight - offset);
-    }
-
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
-}
-
-function hideConnectionsTooltip() {
-    const tooltip = document.getElementById("connections-tooltip");
-    if (!tooltip) return;
-    tooltip.classList.add("hidden");
-}
 
 function openSummaryFromKnowledgeMap(title) {
     window.location.hash = "summaries";
