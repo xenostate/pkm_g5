@@ -1475,7 +1475,21 @@ body {
 /* ── Knowledge Map (Cytoscape) ──────────────────────────────────────────── */
 #cy-wrap { position: relative; flex: 1; min-height: 0; border-radius: var(--radius-lg); background: #0c0e13; border: 1px solid var(--border); overflow: hidden; }
 #cy { position: absolute; inset: 0; }
-.graph-toolbar { display: flex; gap: 10px; align-items: center; padding: 4px 2px 10px; flex-wrap: nowrap; overflow-x: auto; }
+.graph-toolbar { display: flex; gap: 10px; align-items: center; padding: 4px 2px 10px; flex-wrap: wrap; overflow: visible; }
+.graph-layer-toggles { display: flex; gap: 6px; flex-wrap: wrap; }
+/* hover help bubble for toolbar buttons */
+.map-toggle[data-tip] { position: relative; }
+.map-toggle[data-tip]:hover::after {
+    content: attr(data-tip); position: absolute; left: 0; top: calc(100% + 7px);
+    width: max-content; max-width: 250px; white-space: normal; line-height: 1.45;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 11px; font-size: 0.74rem; color: var(--text); z-index: 200;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.55); pointer-events: none;
+}
+.map-toggle[data-tip]:hover::before {
+    content: ""; position: absolute; left: 14px; top: calc(100% + 1px);
+    border: 5px solid transparent; border-bottom-color: var(--border); z-index: 201;
+}
 .graph-toolbar input[type="search"] { flex: 0 0 170px; padding: 7px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: var(--font); font-size: 0.85rem; outline: none; }
 .graph-toolbar input[type="search"]:focus { border-color: #c8a23f; }
 .graph-toolbar .btn { white-space: nowrap; }
@@ -1532,3 +1546,10 @@ body {
 .graph-inspector .ins-conn .ins-other { font-size: 0.82rem; color: var(--text); }
 .graph-inspector .ins-conn .ins-reason { font-size: 0.72rem; color: #c8a23f; }
 .graph-inspector .ins-open { width: 100%; padding: 6px; font-size: 0.78rem; }
+
+/* ── Knowledge Map: maximize (full-screen graph + sidebar) ──────────────── */
+.connections-layout.maximized {
+    position: fixed; inset: 0; z-index: 2000;
+    background: var(--bg); padding: 16px 18px; margin: 0;
+}
+#graph-maximize { font-variant-emoji: text; }

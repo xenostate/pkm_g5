@@ -112,13 +112,14 @@
                                 <input type="range" id="graph-date" min="0" max="100" value="100">
                             </label>
                             <div class="graph-layer-toggles">
-                                <button id="graph-show-relations" class="map-toggle active" type="button">relations</button>
-                                <button id="graph-show-semantic" class="map-toggle active" type="button">semantic</button>
-                                <button id="graph-show-cooccur" class="map-toggle" type="button">co-occurrence</button>
-                                <button id="graph-show-trails" class="map-toggle active" type="button">trails</button>
-                                <button id="graph-show-badges" class="map-toggle" type="button">doc badges</button>
+                                <button id="graph-show-relations" class="map-toggle active" type="button" data-tip="LLM이 추출한 명시적 관계 (is-a · part-of · uses · causes 등). 화살표로 방향 표시.">relations</button>
+                                <button id="graph-show-semantic" class="map-toggle active" type="button" data-tip="서로 다른 문서의 개념 중 의미가 가까운 쌍을 LLM이 설명과 함께 연결.">semantic</button>
+                                <button id="graph-show-cooccur" class="map-toggle" type="button" data-tip="같은 문서 안에 함께 등장한 개념들의 연결 (당연한 관계라 기본 꺼짐).">co-occurrence</button>
+                                <button id="graph-show-trails" class="map-toggle active" type="button" data-tip="같은 Q&A 대화에서 함께 다뤄진 개념들의 연결 (학습 흐름).">trails</button>
+                                <button id="graph-show-badges" class="map-toggle" type="button" data-tip="개념 노드 아래에 출처 문서 번호 배지를 표시.">doc badges</button>
                             </div>
-                            <button id="graph-fit" class="btn btn-secondary" type="button">Fit</button>
+                            <button id="graph-fit" class="map-toggle" type="button" data-tip="그래프 전체를 화면에 맞춰 보기.">Fit</button>
+                            <button id="graph-maximize" class="map-toggle" type="button" data-tip="지식 그래프를 전체 화면으로 크게 보기.">⤢ Maximize</button>
                         </div>
                         <div id="cy-wrap">
                             <div id="cy"></div>

@@ -954,6 +954,28 @@ function initConnections() {
         if (graphState.cy) graphState.cy.fit(undefined, 40);
     });
 
+    const maxBtn = document.getElementById("graph-maximize");
+    if (maxBtn) {
+        maxBtn.addEventListener("click", () => {
+            const layout = document.querySelector(".connections-layout");
+            const on = layout.classList.toggle("maximized");
+            maxBtn.innerHTML = on ? "⤡ Restore" : "⤢ Maximize";
+            setTimeout(() => {
+                if (graphState.cy) { graphState.cy.resize(); graphState.cy.fit(undefined, 45); }
+            }, 90);
+        });
+    }
+    // ESC exits maximize
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        const layout = document.querySelector(".connections-layout");
+        if (layout && layout.classList.contains("maximized")) {
+            layout.classList.remove("maximized");
+            if (maxBtn) maxBtn.innerHTML = "⤢ Maximize";
+            setTimeout(() => { if (graphState.cy) { graphState.cy.resize(); graphState.cy.fit(undefined, 45); } }, 90);
+        }
+    });
+
     document.getElementById("graph-search").addEventListener("input", (e) => {
         applyGraphSearch(e.target.value.trim().toLowerCase());
     });
