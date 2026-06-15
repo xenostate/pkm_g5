@@ -1133,11 +1133,16 @@ function rebuildGraphView() {
             { selector: ".dimmed", style: { "opacity": 0.12, "text-opacity": 0.05 }},
             { selector: ".faded", style: { "opacity": 0.06, "text-opacity": 0.02 }},
             { selector: ".hot", style: { "background-opacity": 1, "color": "#e7eaf0", "z-index": 20 }},
+            // highlighted edges: emphasise the line only — the "why" lives in the
+            // inspector, so no on-canvas labels to overlap (clutter killer)
             { selector: ".hl-edge", style: {
-                "line-color": "#c8a23f", "width": 1.6, "opacity": 1, "z-index": 19,
-                "label": "data(reason)", "font-size": 8.5, "color": "#e8b34b",
-                "text-background-color": "#0c0e13", "text-background-opacity": 0.9, "text-background-padding": "3px",
-                "text-rotation": "autorotate", "text-wrap": "wrap", "text-max-width": "150px", "curve-style": "bezier" }},
+                "line-color": "#c8a23f", "width": 1.6, "opacity": 0.95, "z-index": 19 }},
+            // a single hovered edge may show its reason (one label never overlaps)
+            { selector: "edge.edge-reason", style: {
+                "label": "data(reason)", "font-size": 9, "color": "#e8b34b",
+                "text-background-color": "#0c0e13", "text-background-opacity": 0.92, "text-background-padding": "4px",
+                "text-rotation": "autorotate", "text-wrap": "wrap", "text-max-width": "170px",
+                "line-color": "#c8a23f", "width": 2, "opacity": 1, "z-index": 30, "curve-style": "bezier" }},
             { selector: "node.search-hit", style: { "border-width": 2, "border-color": "#e8b34b", "background-opacity": 1 }},
             { selector: "node.selected-node", style: { "border-width": 2, "border-color": "#e8b34b", "background-opacity": 1, "color": "#e7eaf0" }},
         ],
@@ -1199,6 +1204,10 @@ function wireGraphInteractions() {
     });
 
     cy.on("tap", (evt) => { if (evt.target === cy && graphState.ego) exitGraphEgo(); });
+
+    // hovering a single edge reveals just its reason — one label, never overlapping
+    cy.on("mouseover", "edge", (evt) => evt.target.addClass("edge-reason"));
+    cy.on("mouseout", "edge", (evt) => evt.target.removeClass("edge-reason"));
 
     cy.on("dbltap", "node[type='concept']", (evt) => {
         const docs = evt.target.data("docs") || [];
