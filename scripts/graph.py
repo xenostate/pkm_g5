@@ -362,8 +362,11 @@ def build_graph_payload(kb: dict, embed_fn=None) -> dict:
             f"두 영역을 잇는 질문을 Chat에 해보세요."
         )
 
+    learning_questions = kb.get("graph_cache", {}).get("learning_questions", [])
+
     return {"nodes": nodes, "edges": edges, "communities": communities,
-            "gaps": gaps, "documents": documents}
+            "gaps": gaps, "documents": documents,
+            "learning_questions": learning_questions}
 
 
 # ── Personalized PageRank retrieval fusion ─────────────────────────────────
@@ -503,10 +506,12 @@ def label_communities(kb: dict, payload: dict, llm_fn, min_size: int = 3) -> int
         if not titles and not concepts:
             continue
         prompt = (
-            "Give a short topic label (max 4 words, same language as the titles) "
-            "for a cluster of documents.\n"
-            f"Document titles: {', '.join(titles)}\n"
+            "Give a short topic label (max 4 words) for a cluster of related concepts.\n"
+            "Write the label in English unless the concepts are clearly in another "
+            "language, in which case match that language. Do NOT translate to Spanish "
+            "or any other language.\n"
             f"Key concepts: {', '.join(concepts)}\n"
+            f"Source documents: {', '.join(titles)}\n"
             "Reply with the label only."
         )
         try:
@@ -517,3 +522,58 @@ def label_communities(kb: dict, payload: dict, llm_fn, min_size: int = 3) -> int
             cache[key] = label[:60]
             added += 1
     return added
+
+
+# ── Learning questions (LLM, cached per refresh) ───────────────────────────
+
+def suggest_learning_questions(kb: dict, payload: dict, llm_fn, max_q: int = 6) -> list[dict]:
+    """Generate study questions grounded in the knowledge map's top clusters.
+
+    Replaces the artificial "bridge gap" prompts: instead of forcing links
+    between disconnected areas, this recommends questions that help the user
+    learn the actual content. Cached in kb["graph_cache"]["learning_questions"];
+    one batched llm_fn call. Returns the cached list.
+    """
+    cache = kb.setdefault("graph_cache", {})
+
+    members_by_cid = {}
+    for node in payload.get("nodes", []):
+        members_by_cid.setdefault(node.get("community", -1), []).append(node)
+
+    clusters = []
+    for comm in payload.get("communities", [])[:5]:
+        members = members_by_cid.get(comm["id"], [])
+        if len(members) < 2:
+            continue
+        concepts = [n["label"] for n in sorted(members, key=lambda n: -n.get("centrality", 0))[:6]]
+        clusters.append({"topic": comm["label"], "concepts": concepts})
+    if not clusters:
+        cache["learning_questions"] = []
+        return []
+
+    block = "\n".join(f'- {c["topic"]}: {", ".join(c["concepts"])}' for c in clusters)
+    prompt = (
+        "You are a study coach. Based on these topic clusters from a learner's "
+        "knowledge base, write study questions that deepen understanding of the "
+        "material (definitions, comparisons, applications, why-it-matters). "
+        "Write in English unless the concepts are in another language.\n"
+        f"Generate exactly {max_q} questions, each tied to one cluster topic.\n"
+        'Return ONLY JSON: {"questions": [{"topic": "...", "question": "..."}]}\n\n'
+        f"Topic clusters:\n{block}"
+    )
+    try:
+        raw = llm_fn(prompt)
+        import json as _json
+        start, end = raw.find("{"), raw.rfind("}")
+        data = _json.loads(raw[start:end + 1]) if start != -1 else {}
+        items = data.get("questions", [])
+    except Exception:
+        return cache.get("learning_questions", [])
+
+    questions = []
+    for it in items[:max_q]:
+        if isinstance(it, dict) and isinstance(it.get("question"), str) and it["question"].strip():
+            questions.append({"topic": str(it.get("topic", "")).strip(),
+                              "question": it["question"].strip()})
+    cache["learning_questions"] = questions
+    return questions

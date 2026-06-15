@@ -20,7 +20,7 @@ from scripts.indexer import get_chroma_collection, get_model
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
-RAG_MODEL = os.environ.get("RAG_MODEL", "gpt-4o-mini")
+RAG_MODEL = os.environ.get("RAG_MODEL", "gpt-5.4-mini")
 TOP_K = int(os.environ.get("RAG_TOP_K", "10"))
 LLM_CONTEXT_CHUNKS = int(os.environ.get("RAG_CONTEXT_CHUNKS", "8"))
 
@@ -39,6 +39,39 @@ def get_openai_client() -> OpenAI:
     if _openai_client is None:
         _openai_client = OpenAI()
     return _openai_client
+
+
+# Reasoning models (GPT-5 family, o-series) reject `temperature` and `max_tokens`;
+# they need `max_completion_tokens` and spend hidden reasoning tokens, so short
+# output limits must be padded. This wrapper makes one call shape work everywhere.
+_REASONING_PREFIXES = ("gpt-5", "o1", "o3", "o4")
+
+
+def _is_reasoning_model(model: str) -> bool:
+    return any(model.startswith(p) for p in _REASONING_PREFIXES)
+
+
+def chat_complete(messages, *, model: str | None = None, temperature: float | None = None,
+                  max_tokens: int | None = None, response_format: dict | None = None):
+    """Model-agnostic chat completion. Translates params for reasoning models."""
+    client = get_openai_client()
+    model = model or RAG_MODEL
+    kwargs: dict = {"model": model, "messages": messages}
+    if response_format is not None:
+        kwargs["response_format"] = response_format
+    if _is_reasoning_model(model):
+        # no custom temperature; reserve headroom so reasoning doesn't eat the answer
+        if max_tokens is not None:
+            kwargs["max_completion_tokens"] = max(max_tokens, 2048) + 1024
+        # 'none'/'low' minimize hidden reasoning for these fast extraction tasks
+        # (gpt-5.4 rejects 'minimal'; older gpt-5 used it). 'low' is the safe floor.
+        kwargs["reasoning_effort"] = "low"
+    else:
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+    return client.chat.completions.create(**kwargs)
 
 
 # ── Knowledge Base JSON ────────────────────────────────────────────────────
@@ -179,10 +212,9 @@ Keep names short and canonical. Use the same language as the document.
 Document title: {title}
 Text:
 {excerpt}"""
-    client = get_openai_client()
-    resp = client.chat.completions.create(
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
         model=model_name or RAG_MODEL,
-        messages=[{"role": "user", "content": prompt}],
         temperature=0.1,
         max_tokens=900,
         response_format={"type": "json_object"},
@@ -509,10 +541,8 @@ Answer in the same language as the user's question.
 Question:
 {query}"""
 
-    client = get_openai_client()
-    resp = client.chat.completions.create(
-        model=RAG_MODEL,
-        messages=[{"role": "user", "content": prompt}],
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
         temperature=0.2,
         max_tokens=1500,
     )
@@ -594,13 +624,7 @@ Question:
 
     messages.append({"role": "user", "content": user_msg})
 
-    client = get_openai_client()
-    resp = client.chat.completions.create(
-        model=RAG_MODEL,
-        messages=messages,
-        temperature=0.1,
-        max_tokens=2000,
-    )
+    resp = chat_complete(messages, temperature=0.1, max_tokens=2000)
 
     answer = resp.choices[0].message.content
 
@@ -627,10 +651,8 @@ def summarize_document(text: str, title: str) -> str:
     if len(words) > 8000:
         text = " ".join(words[:8000]) + "\n\n[...truncated for summarization]"
 
-    client = get_openai_client()
-    resp = client.chat.completions.create(
-        model=RAG_MODEL,
-        messages=[
+    resp = chat_complete(
+        [
             {
                 "role": "system",
                 "content": "You are a precise summarizer. Create a clear, structured summary of the document. Identify key concepts, main arguments, and conclusions. Use 3-5 paragraphs.",
@@ -706,12 +728,10 @@ def find_connections(doc_id: str, kb: dict, model=None, describe_with_llm: bool 
     connections.sort(key=lambda x: x["similarity"], reverse=True)
 
     if describe_with_llm:
-        client = get_openai_client()
         for conn in connections[:5]:  # Only describe top 5 to save API calls
             try:
-                resp = client.chat.completions.create(
-                    model=RAG_MODEL,
-                    messages=[
+                resp = chat_complete(
+                    [
                         {
                             "role": "system",
                             "content": "In one concise sentence, describe how these two documents are related based on their summaries.",
@@ -853,10 +873,9 @@ Excerpt:
 {excerpt}
 """
 
-    client = get_openai_client()
-    resp = client.chat.completions.create(
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
         model=model_name or RAG_MODEL,
-        messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
         max_tokens=1800,
     )

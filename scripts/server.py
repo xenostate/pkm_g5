@@ -32,9 +32,9 @@ from scripts.rag import (
     load_kb, save_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
     answer_question, summarize_document, extract_knowledge, generate_document_questions,
     get_questions_by_document, pick_next_question, record_question_result,
-    refresh_missing_concepts, refresh_all_connections, get_openai_client,
+    refresh_missing_concepts, refresh_all_connections, get_openai_client, chat_complete,
 )
-from scripts.graph import canonicalize_concepts, build_graph_payload, label_communities, label_semantic_edges
+from scripts.graph import canonicalize_concepts, build_graph_payload, label_communities, label_semantic_edges, suggest_learning_questions
 from scripts.domain_context import (
     ensure_domain, get_current_domain, list_domains, migrate_legacy_data_to_general,
     set_current_domain, reset_current_domain,
@@ -62,7 +62,7 @@ SESSION_HISTORY_LIMIT = 5
 
 # 환경 변수 로드 및 모델 지정
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-RAG_MODEL = os.getenv("RAG_MODEL", "gpt-4.1-mini")
+RAG_MODEL = os.getenv("RAG_MODEL", "gpt-5.4-mini")
 
 
 def _sync_knowledge_map():
@@ -527,10 +527,8 @@ Return JSON only in this format:
 }}
 """
 
-    client = OpenAI()
-    resp = client.chat.completions.create(
-        model=RAG_MODEL,
-        messages=[{"role": "user", "content": prompt}],
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
         temperature=0.2,
         max_tokens=400,
     )
@@ -624,10 +622,8 @@ async def get_connections():
 
 def _label_communities_llm(prompt: str) -> str:
     """One short completion for a community label."""
-    client = get_openai_client()
-    resp = client.chat.completions.create(
-        model=RAG_MODEL,
-        messages=[{"role": "user", "content": prompt}],
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
         temperature=0.2,
         max_tokens=20,
     )
@@ -636,11 +632,20 @@ def _label_communities_llm(prompt: str) -> str:
 
 def _label_semantic_llm(prompt: str) -> str:
     """One batched completion naming cross-document semantic relations."""
-    client = get_openai_client()
-    resp = client.chat.completions.create(
-        model=RAG_MODEL,
-        messages=[{"role": "user", "content": prompt}],
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
         temperature=0.2,
+        max_tokens=600,
+        response_format={"type": "json_object"},
+    )
+    return resp.choices[0].message.content or "{}"
+
+
+def _learning_questions_llm(prompt: str) -> str:
+    """One batched completion generating study questions from the cluster map."""
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
+        temperature=0.4,
         max_tokens=600,
         response_format={"type": "json_object"},
     )
@@ -659,8 +664,10 @@ async def refresh_connections():
         payload = build_graph_payload(kb, embed_fn=_embed_labels)
         changed = label_communities(kb, payload, _label_communities_llm)
         changed += label_semantic_edges(kb, _label_semantic_llm, embed_fn=_embed_labels)
-        if changed:
-            save_kb(kb)
+        # regenerate the community labels into the payload before suggesting questions
+        payload = build_graph_payload(kb, embed_fn=_embed_labels)
+        suggest_learning_questions(kb, payload, _learning_questions_llm)
+        save_kb(kb)
 
     await asyncio.to_thread(_label)
     return {"status": "refreshed", "document_count": len(kb["documents"]), "concepts_backfilled": concept_updates}

@@ -4,7 +4,7 @@ from scripts.graph import build_concept_graph, build_graph_payload, canonicalize
 def test_payload_contract(sample_kb, fake_embed):
     canonicalize_concepts(sample_kb, embed_fn=fake_embed, threshold=0.9)
     payload = build_graph_payload(sample_kb, embed_fn=fake_embed)
-    assert set(payload) == {"nodes", "edges", "communities", "gaps", "documents"}
+    assert set(payload) == {"nodes", "edges", "communities", "gaps", "documents", "learning_questions"}
     node = next(n for n in payload["nodes"] if n["label"] == "Software Process")
     assert node["kind"] == "concept"
     assert {"community", "centrality", "freq", "doc_ids", "docs", "created_at"} <= set(node)
