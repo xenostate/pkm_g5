@@ -1067,6 +1067,12 @@ function graphCyElements(payload) {
     return [...keptNodes, ...edges];
 }
 
+// Model-space length of an edge (zoom-independent), for length-aware label sizing.
+function edgeLen(ele) {
+    const s = ele.source().position(), t = ele.target().position();
+    return Math.hypot(t.x - s.x, t.y - s.y);
+}
+
 // Human-readable reason an edge exists — the "why" behind every connection.
 function edgeReason(e) {
     switch (e.kind) {
@@ -1137,11 +1143,15 @@ function rebuildGraphView() {
             // inspector, so no on-canvas labels to overlap (clutter killer)
             { selector: ".hl-edge", style: {
                 "line-color": "#c8a23f", "width": 1.6, "opacity": 0.95, "z-index": 19 }},
-            // a single hovered edge may show its reason (one label never overlaps)
+            // a single hovered edge may show its reason; font + width scale with the
+            // edge length so a short line never gets a label that overruns its nodes
             { selector: "edge.edge-reason", style: {
-                "label": "data(reason)", "font-size": 9, "color": "#e8b34b",
-                "text-background-color": "#0c0e13", "text-background-opacity": 0.92, "text-background-padding": "4px",
-                "text-rotation": "autorotate", "text-wrap": "wrap", "text-max-width": "170px",
+                "label": "data(reason)",
+                "font-size": (ele) => { const L = edgeLen(ele); return Math.max(6, Math.min(10, L / 26)); },
+                "text-max-width": (ele) => `${Math.max(40, edgeLen(ele) * 0.66)}px`,
+                "color": "#e8b34b", "text-background-color": "#0c0e13",
+                "text-background-opacity": 0.92, "text-background-padding": "3px",
+                "text-rotation": "autorotate", "text-wrap": "wrap",
                 "line-color": "#c8a23f", "width": 2, "opacity": 1, "z-index": 30, "curve-style": "bezier" }},
             { selector: "node.search-hit", style: { "border-width": 2, "border-color": "#e8b34b", "background-opacity": 1 }},
             { selector: "node.selected-node", style: { "border-width": 2, "border-color": "#e8b34b", "background-opacity": 1, "color": "#e7eaf0" }},
@@ -1205,8 +1215,12 @@ function wireGraphInteractions() {
 
     cy.on("tap", (evt) => { if (evt.target === cy && graphState.ego) exitGraphEgo(); });
 
-    // hovering a single edge reveals just its reason — one label, never overlapping
-    cy.on("mouseover", "edge", (evt) => evt.target.addClass("edge-reason"));
+    // hovering a single edge reveals just its reason — but a dimmed/faded edge
+    // (outside the current focus) stays quiet so only the relevant line responds
+    cy.on("mouseover", "edge", (evt) => {
+        if (evt.target.hasClass("faded") || evt.target.hasClass("dimmed")) return;
+        evt.target.addClass("edge-reason");
+    });
     cy.on("mouseout", "edge", (evt) => evt.target.removeClass("edge-reason"));
 
     cy.on("dbltap", "node[type='concept']", (evt) => {
