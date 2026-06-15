@@ -1031,7 +1031,7 @@ function graphCyElements(payload) {
     const ids = new Set(visible.map(n => n.id));
     const nodes = visible.map(n => {
         const badge = (n.docs || []).map(docBadge).join("·");
-        return { data: { ...n, type: "concept",
+        return { data: { ...n, type: "concept", lblH: "center", lblV: "bottom",
             display: showBadges && badge ? `${n.label}\n[${badge}]` : n.label } };
     });
 
@@ -1063,8 +1063,33 @@ function graphCyElements(payload) {
     // drop isolated nodes (no surviving edge)
     const connected = new Set();
     edges.forEach(e => { connected.add(e.data.source); connected.add(e.data.target); });
-    const keptNodes = nodes.filter(n => connected.has(n.data.id));
-    return [...keptNodes, ...edges];
+    let keptNodes = nodes.filter(n => connected.has(n.data.id));
+
+    // keep only the main connected component — small satellites floating off to
+    // the side (single concepts, 2-3 node fragments) just add visual noise
+    const adj = new Map();
+    keptNodes.forEach(n => adj.set(n.data.id, []));
+    edges.forEach(e => {
+        adj.get(e.data.source)?.push(e.data.target);
+        adj.get(e.data.target)?.push(e.data.source);
+    });
+    const seen = new Set();
+    let biggest = [];
+    for (const n of keptNodes) {
+        if (seen.has(n.data.id)) continue;
+        const stack = [n.data.id]; const members = [];
+        while (stack.length) {
+            const x = stack.pop();
+            if (seen.has(x)) continue;
+            seen.add(x); members.push(x);
+            (adj.get(x) || []).forEach(y => { if (!seen.has(y)) stack.push(y); });
+        }
+        if (members.length > biggest.length) biggest = members;
+    }
+    const keepId = new Set(biggest);
+    keptNodes = keptNodes.filter(n => keepId.has(n.data.id));
+    const finalEdges = edges.filter(e => keepId.has(e.data.source) && keepId.has(e.data.target));
+    return [...keptNodes, ...finalEdges];
 }
 
 // Model-space length of an edge (zoom-independent), for length-aware label sizing.
@@ -1120,7 +1145,9 @@ function rebuildGraphView() {
                 "width": (ele) => 7 + Math.min(ele.data("freq"), 4) * 2.5 + ele.data("centrality") * 14,
                 "height": (ele) => 7 + Math.min(ele.data("freq"), 4) * 2.5 + ele.data("centrality") * 14,
                 "label": "data(display)", "color": "#9aa0ad", "font-size": 8.5,
-                "text-valign": "bottom", "text-margin-y": 3,
+                "text-halign": "data(lblH)", "text-valign": "data(lblV)",
+                "text-margin-x": (ele) => { const h = ele.data("lblH"); return h === "right" ? 7 : h === "left" ? -7 : 0; },
+                "text-margin-y": (ele) => { const v = ele.data("lblV"); return v === "bottom" ? 4 : v === "top" ? -4 : 0; },
                 "text-max-width": "110px", "text-wrap": "wrap",
                 "border-width": 0,
                 "transition-property": "opacity, background-opacity", "transition-duration": "0.12s",
@@ -1162,8 +1189,28 @@ function rebuildGraphView() {
     wireGraphInteractions();
     wireZoomAdaptiveLabels();
     renderGraphLegend(graphState.payload);
+    // remember the laid-out positions so ego focus can restore them afterwards
+    graphState.cy.one("layoutstop", () => {
+        graphState.basePositions = {};
+        graphState.cy.nodes().forEach(n => { graphState.basePositions[n.id()] = { ...n.position() }; });
+    });
     if (graphState.highlightCommunity !== null) highlightCommunity(graphState.highlightCommunity);
     applyGraphSearch(document.getElementById("graph-search").value.trim().toLowerCase());
+}
+
+// Point each neighbour's label away from the focused node (outward), so labels
+// fan out around the ring instead of piling up near the centre.
+function layoutLabelsOutward(center, hood) {
+    const c = center.position();
+    hood.nodes().forEach(nb => {
+        if (nb.same(center)) { nb.data("lblH", "center"); nb.data("lblV", "bottom"); return; }
+        const p = nb.position(); const dx = p.x - c.x, dy = p.y - c.y;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            nb.data("lblH", dx >= 0 ? "right" : "left"); nb.data("lblV", "center");
+        } else {
+            nb.data("lblH", "center"); nb.data("lblV", dy >= 0 ? "bottom" : "top");
+        }
+    });
 }
 
 // Below this zoom only hub concepts keep labels (overview readability).
@@ -1199,7 +1246,7 @@ function wireGraphInteractions() {
         if (graphState.highlightCommunity !== null) highlightCommunity(graphState.highlightCommunity);
     });
 
-    // click: focus the node and explain it in the inspector
+    // click: focus the node, spread its neighbours on a ring, explain in inspector
     cy.on("tap", "node[type='concept']", (evt) => {
         const node = evt.target;
         const hood = node.closedNeighborhood();
@@ -1210,7 +1257,20 @@ function wireGraphInteractions() {
         node.addClass("selected-node");
         graphState.ego = node.id();
         showConceptInspector(node);
-        cy.animate({ fit: { eles: hood, padding: 80 }, duration: 300 });
+
+        // concentric re-layout of just the neighbourhood: even angular spacing
+        // means the dots (and so their labels) no longer overlap near the hub
+        const others = hood.nodes().not(node);
+        const spacing = Math.max(46, Math.min(120, 1100 / Math.max(others.length, 1)));
+        hood.layout({
+            name: "concentric",
+            concentric: (n) => (n.same(node) ? 10 : 1),
+            levelWidth: () => 1,
+            minNodeSpacing: spacing,
+            animate: true, animationDuration: 350, fit: true, padding: 90,
+            startAngle: -Math.PI / 2,
+        }).run();
+        graphState.cy.one("layoutstop", () => layoutLabelsOutward(node, hood));
     });
 
     cy.on("tap", (evt) => { if (evt.target === cy && graphState.ego) exitGraphEgo(); });
@@ -1279,14 +1339,23 @@ function showConceptInspector(node) {
 
 function exitGraphEgo() {
     if (!graphState.cy) return;
+    const cy = graphState.cy;
     graphState.ego = null;
-    graphState.cy.elements().removeClass("faded dimmed hl-edge hot selected-node");
+    cy.elements().removeClass("faded dimmed hl-edge hot selected-node");
+    cy.nodes().forEach(n => { n.data("lblH", "center"); n.data("lblV", "bottom"); });
     document.getElementById("graph-ego-banner").classList.remove("show");
     const box = document.getElementById("graph-inspector");
     if (box) box.classList.remove("show");
+    // restore the original force-directed positions disturbed by the ring layout
+    const base = graphState.basePositions;
+    if (base) {
+        cy.nodes().forEach(n => { const p = base[n.id()]; if (p) n.animate({ position: p }, { duration: 320 }); });
+        setTimeout(() => cy.animate({ fit: { padding: 45 }, duration: 300 }), 60);
+    } else {
+        cy.animate({ fit: { padding: 45 }, duration: 300 });
+    }
     applyZoomLabels();
     if (graphState.highlightCommunity !== null) highlightCommunity(graphState.highlightCommunity);
-    else graphState.cy.animate({ fit: { padding: 45 }, duration: 300 });
 }
 
 function highlightCommunity(cid) {
