@@ -1214,6 +1214,7 @@ function rebuildGraphView() {
     wireGraphInteractions();
     wireZoomAdaptiveLabels();
     renderGraphLegend(graphState.payload);
+    renderCommunityPanel(graphState.payload); // refresh counts from the rendered graph
     // base positions are captured lazily on the first ego click (see tap handler),
     // so a fresh rebuild forgets any stale snapshot
     graphState.basePositions = null;
@@ -1463,11 +1464,20 @@ function setGraphDocFilter(selectedDocs, opts = {}) {
 
 function renderCommunityPanel(payload) {
     const container = document.getElementById("community-list");
+    // count only the concepts actually on the map (main component) so the panel
+    // matches the graph; single-concept clusters aren't real clusters — hide them
     const counts = {};
-    payload.nodes.forEach(n => {
-        if (n.community >= 0) counts[n.community] = (counts[n.community] || 0) + 1;
-    });
-    const rows = payload.communities.filter(c => counts[c.id]);
+    if (graphState.cy && graphState.cy.nodes().length) {
+        graphState.cy.nodes("[type='concept']").forEach(n => {
+            const c = n.data("community");
+            if (c >= 0) counts[c] = (counts[c] || 0) + 1;
+        });
+    } else {
+        payload.nodes.forEach(n => {
+            if (n.community >= 0) counts[n.community] = (counts[n.community] || 0) + 1;
+        });
+    }
+    const rows = payload.communities.filter(c => counts[c.id] >= 2);
     if (!rows.length) {
         container.innerHTML = '<p class="empty-state">Refresh connections to detect clusters.</p>';
         return;
