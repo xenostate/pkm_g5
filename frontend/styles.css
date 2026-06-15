@@ -1552,4 +1552,14 @@ body {
     position: fixed; inset: 0; z-index: 2000;
     background: var(--bg); padding: 16px 18px; margin: 0;
 }
-#graph-maximize { font-variant-emoji: text; }
+/* full-screen icon button, top-right of the graph — blends with the canvas */
+.graph-maximize-btn {
+    position: absolute; top: 12px; right: 14px; z-index: 14;
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    border: none; border-radius: 8px; background: #0c0e13; color: #8b91a3;
+    cursor: pointer; transition: color 0.15s, background 0.15s; padding: 0;
+}
+.graph-maximize-btn svg { width: 24px; height: 24px; display: block; }
+.graph-maximize-btn:hover { color: var(--text); background: #161922; }
+/* inspector sits below the maximize icon so they never overlap */
+.graph-inspector { top: 60px; }

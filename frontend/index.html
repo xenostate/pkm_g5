@@ -119,10 +119,12 @@
                                 <button id="graph-show-badges" class="map-toggle" type="button" data-tip="개념 노드 아래에 출처 문서 번호 배지를 표시.">doc badges</button>
                             </div>
                             <button id="graph-fit" class="map-toggle" type="button" data-tip="그래프 전체를 화면에 맞춰 보기.">Fit</button>
-                            <button id="graph-maximize" class="map-toggle" type="button" data-tip="지식 그래프를 전체 화면으로 크게 보기.">⤢ Maximize</button>
                         </div>
                         <div id="cy-wrap">
                             <div id="cy"></div>
+                            <button id="graph-maximize" class="graph-maximize-btn" type="button" title="전체 화면으로 크게 보기 (ESC로 복귀)" aria-label="Maximize">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+                            </button>
                             <div id="graph-ego-banner" class="graph-ego-banner">Focus mode — click empty space to return</div>
                             <div id="graph-inspector" class="graph-inspector"></div>
                             <div id="graph-legend" class="graph-legend"></div>

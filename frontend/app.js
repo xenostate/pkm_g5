@@ -954,25 +954,28 @@ function initConnections() {
         if (graphState.cy) graphState.cy.fit(undefined, 40);
     });
 
+    const SVG_MAX = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+    const SVG_MIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
     const maxBtn = document.getElementById("graph-maximize");
-    if (maxBtn) {
-        maxBtn.addEventListener("click", () => {
-            const layout = document.querySelector(".connections-layout");
-            const on = layout.classList.toggle("maximized");
-            maxBtn.innerHTML = on ? "⤡ Restore" : "⤢ Maximize";
-            setTimeout(() => {
-                if (graphState.cy) { graphState.cy.resize(); graphState.cy.fit(undefined, 45); }
-            }, 90);
-        });
-    }
-    // ESC exits maximize
-    document.addEventListener("keydown", (e) => {
-        if (e.key !== "Escape") return;
+    const reflow = () => setTimeout(() => {
+        if (graphState.cy) { graphState.cy.resize(); graphState.cy.fit(undefined, 45); }
+    }, 90);
+    const setMaximized = (on) => {
         const layout = document.querySelector(".connections-layout");
-        if (layout && layout.classList.contains("maximized")) {
-            layout.classList.remove("maximized");
-            if (maxBtn) maxBtn.innerHTML = "⤢ Maximize";
-            setTimeout(() => { if (graphState.cy) { graphState.cy.resize(); graphState.cy.fit(undefined, 45); } }, 90);
+        layout.classList.toggle("maximized", on);
+        if (maxBtn) {
+            maxBtn.innerHTML = on ? SVG_MIN : SVG_MAX;
+            maxBtn.title = on ? "원래 크기로 (ESC)" : "전체 화면으로 크게 보기 (ESC로 복귀)";
+        }
+        reflow();
+    };
+    if (maxBtn) {
+        maxBtn.addEventListener("click", () =>
+            setMaximized(!document.querySelector(".connections-layout").classList.contains("maximized")));
+    }
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && document.querySelector(".connections-layout")?.classList.contains("maximized")) {
+            setMaximized(false);
         }
     });
 
@@ -1211,11 +1214,9 @@ function rebuildGraphView() {
     wireGraphInteractions();
     wireZoomAdaptiveLabels();
     renderGraphLegend(graphState.payload);
-    // remember the laid-out positions so ego focus can restore them afterwards
-    graphState.cy.one("layoutstop", () => {
-        graphState.basePositions = {};
-        graphState.cy.nodes().forEach(n => { graphState.basePositions[n.id()] = { ...n.position() }; });
-    });
+    // base positions are captured lazily on the first ego click (see tap handler),
+    // so a fresh rebuild forgets any stale snapshot
+    graphState.basePositions = null;
     if (graphState.highlightCommunity !== null) highlightCommunity(graphState.highlightCommunity);
     applyGraphSearch(document.getElementById("graph-search").value.trim().toLowerCase());
 }
@@ -1271,6 +1272,12 @@ function wireGraphInteractions() {
     // click: focus the node, spread its neighbours on a ring, explain in inspector
     cy.on("tap", "node[type='concept']", (evt) => {
         const node = evt.target;
+        // snapshot the current (force-directed) positions BEFORE the ring layout
+        // disturbs them, so closing the focus can restore the map exactly
+        if (!graphState.basePositions) {
+            graphState.basePositions = {};
+            cy.nodes().forEach(n => { graphState.basePositions[n.id()] = { ...n.position() }; });
+        }
         const hood = node.closedNeighborhood();
         cy.elements().removeClass("dimmed faded hl-edge hot selected-node");
         cy.elements().difference(hood).addClass("faded");
