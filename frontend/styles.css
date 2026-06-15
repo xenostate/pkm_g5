@@ -1513,3 +1513,22 @@ body {
 .learn-card:hover { background: var(--surface-hover); }
 .learn-card .learn-topic { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.4px; color: #c8a23f; margin-bottom: 3px; }
 .learn-card .learn-q { font-size: 0.82rem; line-height: 1.5; color: var(--text); }
+
+/* ── Knowledge Map: minimal inspector ───────────────────────────────────── */
+.graph-inspector { position: absolute; right: 12px; top: 12px; z-index: 12; width: 280px; max-height: calc(100% - 24px);
+    overflow-y: auto; display: none; background: rgba(14, 16, 22, 0.96); backdrop-filter: blur(8px);
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px 15px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); }
+.graph-inspector.show { display: block; }
+.graph-inspector .ins-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.graph-inspector .ins-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.graph-inspector .ins-title { font-size: 1rem; font-weight: 600; color: var(--text); line-height: 1.25; }
+.graph-inspector .ins-close { margin-left: auto; background: none; border: none; color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 0 2px; }
+.graph-inspector .ins-close:hover { color: var(--text); }
+.graph-inspector .ins-meta { font-size: 0.72rem; color: var(--text-secondary); text-transform: lowercase; margin-bottom: 8px; }
+.graph-inspector .ins-docs { font-size: 0.76rem; color: #9aa0ad; line-height: 1.5; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.graph-inspector .ins-conn-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 7px; }
+.graph-inspector .ins-conn { list-style: none; display: flex; flex-direction: column; gap: 7px; margin: 0 0 12px; padding: 0; }
+.graph-inspector .ins-conn li { display: flex; flex-direction: column; gap: 1px; }
+.graph-inspector .ins-conn .ins-other { font-size: 0.82rem; color: var(--text); }
+.graph-inspector .ins-conn .ins-reason { font-size: 0.72rem; color: #c8a23f; }
+.graph-inspector .ins-open { width: 100%; padding: 6px; font-size: 0.78rem; }

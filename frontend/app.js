@@ -1055,56 +1055,45 @@ function graphCyElements(payload) {
     }
     const edges = kept.map((e, i) => ({ data: {
         id: `e${i}`, source: e.source, target: e.target, kind: e.kind,
-        weight: e.weight || 1,
-        label: e.kind === "cooccur" ? (e.shared_docs || []).join(" · ") : (e.label || ""),
-        category: e.category || "",
+        weight: e.weight || 1, category: e.category || "",
+        label: e.label || "", shared_docs: e.shared_docs || [],
+        reason: edgeReason(e),
     }}));
 
     // drop isolated nodes (no surviving edge)
     const connected = new Set();
     edges.forEach(e => { connected.add(e.data.source); connected.add(e.data.target); });
     const keptNodes = nodes.filter(n => connected.has(n.data.id));
+    return [...keptNodes, ...edges];
+}
 
-    // group concepts into community compound boxes so each cluster occupies its
-    // own labelled region (fcose lays out compounds as separated clusters)
-    const commLabel = {};
-    payload.communities.forEach(c => { commLabel[c.id] = c.label; });
-    const usedComm = new Map(); // cid -> member count
-    keptNodes.forEach(n => {
-        const c = n.data.community;
-        if (c >= 0) usedComm.set(c, (usedComm.get(c) || 0) + 1);
-    });
-    const parents = [];
-    for (const [cid, count] of usedComm) {
-        if (count < 2) continue; // singletons float free, no box
-        parents.push({ data: {
-            id: `comm::${cid}`, type: "community", community: cid,
-            label: commLabel[cid] || `Cluster ${cid}`,
-        }});
+// Human-readable reason an edge exists — the "why" behind every connection.
+function edgeReason(e) {
+    switch (e.kind) {
+        case "triple": return e.label ? `relation: ${e.label}` : "typed relation";
+        case "semantic": return e.label ? `similar: ${e.label}` : "semantically similar";
+        case "trail": return "discussed together in a Q&A";
+        case "cooccur": return e.shared_docs && e.shared_docs.length
+            ? `appear together in ${e.shared_docs.join(", ")}` : "appear in the same document";
+        default: return e.kind;
     }
-    const boxed = new Set(parents.map(p => p.data.community));
-    keptNodes.forEach(n => {
-        if (boxed.has(n.data.community)) n.data.parent = `comm::${n.data.community}`;
-    });
-    return [...parents, ...keptNodes, ...edges];
 }
 
 function graphLayout() {
     if (window.cytoscapeFcose) {
         return {
             name: "fcose", quality: "proof", animate: false, randomize: true,
-            // community-aware spacing: same-cluster edges pull tight, cross-cluster
-            // edges stay long, so each community lands in its own spatial region
+            // same-community edges pull a little tighter so clusters read as loose
+            // groupings — by position only, no boxes (Obsidian-like calm layout)
             idealEdgeLength: (edge) =>
-                edge.source().data("community") === edge.target().data("community") ? 45 : 230,
-            edgeElasticity: (edge) =>
-                edge.source().data("community") === edge.target().data("community") ? 0.55 : 0.1,
-            nodeRepulsion: 7000, gravity: 0.2, gravityRange: 3.0, gravityCompound: 1.2,
-            numIter: 3000, packComponents: true, nodeSeparation: 110, padding: 45,
+                edge.source().data("community") === edge.target().data("community") ? 55 : 130,
+            edgeElasticity: 0.4,
+            nodeRepulsion: 5500, gravity: 0.12, gravityRange: 4.0,
+            numIter: 2500, packComponents: true, nodeSeparation: 95, padding: 50,
         };
     }
-    return { name: "cose", animate: false, nodeRepulsion: 240000, idealEdgeLength: 110,
-             gravity: 0.3, padding: 40, componentSpacing: 150, nodeOverlap: 40 };
+    return { name: "cose", animate: false, nodeRepulsion: 200000, idealEdgeLength: 90,
+             gravity: 0.2, padding: 40, componentSpacing: 140, nodeOverlap: 30 };
 }
 
 function rebuildGraphView() {
@@ -1118,43 +1107,39 @@ function rebuildGraphView() {
         container: document.getElementById("cy"),
         elements: graphCyElements(payload),
         style: [
-            { selector: "node[type='community']", style: {
-                "background-color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
-                "background-opacity": 0.07, "shape": "round-rectangle", "padding": 14,
-                "border-width": 1, "border-style": "dashed",
-                "border-color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
-                "border-opacity": 0.5,
-                "label": "data(label)", "text-valign": "top", "text-halign": "center", "text-margin-y": -2,
-                "color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
-                "font-size": 13, "font-weight": 700, "text-max-width": "200px", "text-wrap": "ellipsis",
-            }},
+            // minimal: small uniform dots, soft community color, thin links
             { selector: "node[type='concept']", style: {
                 "background-color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
-                "width": (ele) => Math.min(16 + ele.data("freq") * 5 + ele.data("centrality") * 28, 46),
-                "height": (ele) => Math.min(16 + ele.data("freq") * 5 + ele.data("centrality") * 28, 46),
-                "label": "data(display)", "color": "#d8dbe4", "font-size": 10,
-                "text-valign": "bottom", "text-margin-y": 5,
-                "text-max-width": "120px", "text-wrap": "wrap",
-                "border-width": 2, "border-color": "#0c0e13",
+                "background-opacity": 0.92,
+                "width": (ele) => 7 + Math.min(ele.data("freq"), 4) * 2.5 + ele.data("centrality") * 14,
+                "height": (ele) => 7 + Math.min(ele.data("freq"), 4) * 2.5 + ele.data("centrality") * 14,
+                "label": "data(display)", "color": "#9aa0ad", "font-size": 8.5,
+                "text-valign": "bottom", "text-margin-y": 3,
+                "text-max-width": "110px", "text-wrap": "wrap",
+                "border-width": 0,
+                "transition-property": "opacity, background-opacity", "transition-duration": "0.12s",
             }},
-            { selector: "node[kind='entity']", style: { "shape": "diamond", "border-color": "#4a5a7a" }},
-            { selector: "edge", style: { "curve-style": "haystack", "haystack-radius": 0.2,
-                "line-color": "#3a3f50", "width": 1, "opacity": 0.65 }},
-            { selector: "edge[kind='semantic']", style: { "line-color": "#8a93b8",
-                "width": (ele) => 1.2 + Math.min(ele.data("weight"), 3) * 0.8 }},
+            { selector: "node[kind='entity']", style: { "shape": "round-rectangle" }},
+            { selector: "edge", style: { "curve-style": "haystack", "haystack-radius": 0,
+                "line-color": "#2f3340", "width": 0.8, "opacity": 0.6 }},
+            { selector: "edge[kind='semantic']", style: { "line-color": "#5a6178", "width": 1 }},
             { selector: "edge[kind='triple']", style: {
-                "line-color": (ele) => GRAPH_CAT_COLORS[ele.data("category")] || "#6b6b75", "width": 2,
-                "target-arrow-shape": "triangle", "arrow-scale": 0.8, "curve-style": "bezier",
-                "target-arrow-color": (ele) => GRAPH_CAT_COLORS[ele.data("category")] || "#6b6b75" }},
-            { selector: "edge[kind='trail']", style: { "line-style": "dotted", "line-color": "#4e79a7", "width": 2, "curve-style": "bezier" }},
-            { selector: "edge[kind='cooccur']", style: { "line-style": "dashed", "line-color": "#3d4252", "width": 1 }},
+                "line-color": "#5d6470", "width": 1,
+                "target-arrow-shape": "triangle", "arrow-scale": 0.55, "curve-style": "bezier",
+                "target-arrow-color": "#5d6470" }},
+            { selector: "edge[kind='trail']", style: { "line-style": "dotted", "line-color": "#3f4a63", "width": 1, "curve-style": "bezier" }},
+            { selector: "edge[kind='cooccur']", style: { "line-color": "#262a35", "width": 0.7 }},
             { selector: ".label-hidden", style: { "text-opacity": 0 }},
-            { selector: ".faded", style: { "opacity": 0.07, "text-opacity": 0.03 }},
+            { selector: ".dimmed", style: { "opacity": 0.12, "text-opacity": 0.05 }},
+            { selector: ".faded", style: { "opacity": 0.06, "text-opacity": 0.02 }},
+            { selector: ".hot", style: { "background-opacity": 1, "color": "#e7eaf0", "z-index": 20 }},
             { selector: ".hl-edge", style: {
-                "label": "data(label)", "font-size": 9, "color": "#e8b34b",
-                "text-background-color": "#0c0e13", "text-background-opacity": 0.85, "text-background-padding": "3px",
-                "text-wrap": "ellipsis", "text-max-width": "180px", "curve-style": "bezier" }},
-            { selector: "node.search-hit", style: { "border-color": "#e8b34b", "border-width": 3 }},
+                "line-color": "#c8a23f", "width": 1.6, "opacity": 1, "z-index": 19,
+                "label": "data(reason)", "font-size": 8.5, "color": "#e8b34b",
+                "text-background-color": "#0c0e13", "text-background-opacity": 0.9, "text-background-padding": "3px",
+                "text-rotation": "autorotate", "text-wrap": "wrap", "text-max-width": "150px", "curve-style": "bezier" }},
+            { selector: "node.search-hit", style: { "border-width": 2, "border-color": "#e8b34b", "background-opacity": 1 }},
+            { selector: "node.selected-node", style: { "border-width": 2, "border-color": "#e8b34b", "background-opacity": 1, "color": "#e7eaf0" }},
         ],
         layout: graphLayout(),
         wheelSensitivity: 0.2,
@@ -1184,29 +1169,33 @@ function wireZoomAdaptiveLabels() {
 function wireGraphInteractions() {
     const cy = graphState.cy;
 
+    // hover: gently surface the node's neighbourhood + label the connections
     cy.on("mouseover", "node[type='concept']", (evt) => {
         if (graphState.ego) return;
         const hood = evt.target.closedNeighborhood();
-        cy.elements().difference(hood).addClass("faded");
-        hood.nodes().removeClass("label-hidden");
+        cy.elements().difference(hood).addClass("dimmed");
+        hood.nodes().removeClass("label-hidden").addClass("hot");
         evt.target.connectedEdges().addClass("hl-edge");
     });
     cy.on("mouseout", "node[type='concept']", () => {
         if (graphState.ego) return;
-        cy.elements().removeClass("faded hl-edge");
-        if (cy.zoom() < LABEL_ZOOM_THRESHOLD) {
-            cy.nodes().filter(n => n.data("freq") < 2 && n.data("centrality") < 0.06).addClass("label-hidden");
-        }
+        cy.elements().removeClass("dimmed hl-edge hot");
+        applyZoomLabels();
         if (graphState.highlightCommunity !== null) highlightCommunity(graphState.highlightCommunity);
     });
 
+    // click: focus the node and explain it in the inspector
     cy.on("tap", "node[type='concept']", (evt) => {
-        const hood = evt.target.closedNeighborhood();
+        const node = evt.target;
+        const hood = node.closedNeighborhood();
+        cy.elements().removeClass("dimmed faded hl-edge hot selected-node");
         cy.elements().difference(hood).addClass("faded");
-        hood.connectedEdges().addClass("hl-edge");
-        graphState.ego = evt.target.id();
-        document.getElementById("graph-ego-banner").classList.add("show");
-        cy.animate({ fit: { eles: hood, padding: 70 }, duration: 300 });
+        node.connectedEdges().addClass("hl-edge");
+        hood.nodes().removeClass("label-hidden").addClass("hot");
+        node.addClass("selected-node");
+        graphState.ego = node.id();
+        showConceptInspector(node);
+        cy.animate({ fit: { eles: hood, padding: 80 }, duration: 300 });
     });
 
     cy.on("tap", (evt) => { if (evt.target === cy && graphState.ego) exitGraphEgo(); });
@@ -1217,13 +1206,64 @@ function wireGraphInteractions() {
     });
 }
 
+function applyZoomLabels() {
+    const cy = graphState.cy;
+    if (!cy) return;
+    const small = cy.zoom() < LABEL_ZOOM_THRESHOLD;
+    cy.nodes().filter(n => n.data("freq") < 2 && n.data("centrality") < 0.06)
+        .toggleClass("label-hidden", small);
+}
+
+// Inspector: explains WHAT a concept is and WHY it links to its neighbours.
+function showConceptInspector(node) {
+    const box = document.getElementById("graph-inspector");
+    if (!box) return;
+    const d = node.data();
+    const payload = graphState.payload || {};
+    const commLabel = (payload.communities || []).find(c => c.id === d.community);
+    const docs = (d.docs || []);
+    const cy = graphState.cy;
+
+    const conns = node.connectedEdges().map(e => {
+        const other = e.source().id() === node.id() ? e.target() : e.source();
+        return { label: other.data("label"), reason: e.data("reason"), kind: e.data("kind") };
+    }).sort((a, b) => a.kind.localeCompare(b.kind));
+
+    const connHtml = conns.length
+        ? conns.map(c => `<li><span class="ins-other">${escapeHtml(c.label)}</span>` +
+            `<span class="ins-reason">${escapeHtml(c.reason)}</span></li>`).join("")
+        : '<li class="empty-state">No connections.</li>';
+
+    box.innerHTML =
+        `<div class="ins-head">` +
+        `<span class="ins-dot" style="background:${GRAPH_PALETTE[Math.max(d.community,0)%GRAPH_PALETTE.length]}"></span>` +
+        `<span class="ins-title">${escapeHtml(d.label)}</span>` +
+        `<button class="ins-close" type="button" aria-label="Close">×</button></div>` +
+        `<div class="ins-meta">${d.kind === "entity" ? (d.entity_type || "entity") : "concept"}` +
+        (commLabel ? ` · ${escapeHtml(commLabel.label)}` : "") +
+        (docs.length ? ` · in ${docs.length} doc${docs.length > 1 ? "s" : ""}` : "") + `</div>` +
+        (docs.length ? `<div class="ins-docs">From: ${docs.map(escapeHtml).join(", ")}</div>` : "") +
+        `<div class="ins-conn-title">Connected to (why):</div>` +
+        `<ul class="ins-conn">${connHtml}</ul>` +
+        (docs.length ? `<button class="btn btn-secondary ins-open" type="button">Open document</button>` : "");
+
+    const openBtn = box.querySelector(".ins-open");
+    if (openBtn) openBtn.addEventListener("click", () => openSummaryFromKnowledgeMap(docs[0]));
+    const closeBtn = box.querySelector(".ins-close");
+    if (closeBtn) closeBtn.addEventListener("click", exitGraphEgo);
+    box.classList.add("show");
+}
+
 function exitGraphEgo() {
     if (!graphState.cy) return;
     graphState.ego = null;
-    graphState.cy.elements().removeClass("faded hl-edge");
+    graphState.cy.elements().removeClass("faded dimmed hl-edge hot selected-node");
     document.getElementById("graph-ego-banner").classList.remove("show");
+    const box = document.getElementById("graph-inspector");
+    if (box) box.classList.remove("show");
+    applyZoomLabels();
     if (graphState.highlightCommunity !== null) highlightCommunity(graphState.highlightCommunity);
-    else graphState.cy.animate({ fit: { padding: 40 }, duration: 300 });
+    else graphState.cy.animate({ fit: { padding: 45 }, duration: 300 });
 }
 
 function highlightCommunity(cid) {
