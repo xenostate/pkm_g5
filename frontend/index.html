@@ -105,9 +105,10 @@
                     <div class="connections-container">
                         <div class="graph-toolbar">
                             <input type="search" id="graph-search" placeholder="Find node...">
-                            <label class="graph-slider-label">links/concept ≤ <span id="graph-topk-value">3</span>
-                                <input type="range" id="graph-topk" min="1" max="8" step="1" value="3">
-                            </label>
+                            <div class="graph-expand-controls">
+                                <button id="graph-expand-all" class="btn btn-secondary" type="button">Expand all</button>
+                                <button id="graph-collapse-all" class="btn btn-secondary" type="button">Collapse all</button>
+                            </div>
                             <label class="graph-slider-label">as of <span id="graph-date-value">now</span>
                                 <input type="range" id="graph-date" min="0" max="100" value="100">
                             </label>
@@ -116,7 +117,7 @@
                                 <button id="graph-show-semantic" class="map-toggle active" type="button">semantic</button>
                                 <button id="graph-show-cooccur" class="map-toggle" type="button">co-occurrence</button>
                                 <button id="graph-show-trails" class="map-toggle active" type="button">trails</button>
-                                <button id="graph-show-badges" class="map-toggle active" type="button">doc badges</button>
+                                <button id="graph-show-badges" class="map-toggle" type="button">doc badges</button>
                             </div>
                             <button id="graph-fit" class="btn btn-secondary" type="button">Fit</button>
                         </div>
@@ -124,10 +125,18 @@
                             <div id="cy"></div>
                             <div id="graph-ego-banner" class="graph-ego-banner">Focus mode — click to return to full view</div>
                             <div id="graph-legend" class="graph-legend"></div>
+                            <div class="graph-hint">Click a cluster bubble to expand · click a concept to focus · double-click to open its document</div>
                         </div>
                         <div id="connections-empty" class="empty-state">Add at least 2 documents, then click "Refresh Connections" to discover relationships.</div>
                     </div>
+                    <button class="panel-handle" type="button" aria-label="Toggle panels">‹</button>
                     <aside class="topic-panel">
+                        <h3>Clusters</h3>
+                        <p class="topic-panel-copy">Click a cluster to expand or collapse it on the map.</p>
+                        <div id="community-list" class="topic-correlation-list"></div>
+                        <h3>Study Questions</h3>
+                        <p class="topic-panel-copy">Questions to deepen your understanding — click to ask in Chat.</p>
+                        <div id="learning-list" class="topic-correlation-list"></div>
                         <h3>Documents</h3>
                         <p class="topic-panel-copy">Choose which documents appear on the map.</p>
                         <div class="graph-doc-filter-actions">
@@ -135,11 +144,6 @@
                             <button id="graph-docs-none" class="btn btn-secondary" type="button">None</button>
                         </div>
                         <div id="graph-doc-filter" class="graph-doc-filter"></div>
-                        <h3>Clusters</h3>
-                        <div id="community-list" class="topic-correlation-list"></div>
-                        <h3>Bridge Questions</h3>
-                        <p class="topic-panel-copy">Disconnected areas of your knowledge — ask a question that links them.</p>
-                        <div id="gap-list" class="topic-correlation-list"></div>
                     </aside>
                 </div>
             </div>
