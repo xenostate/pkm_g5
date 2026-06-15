@@ -20,14 +20,20 @@ const GRAPH_CAT_COLORS = { "is-a": "#4e79a7", "part-of": "#59a14f", "uses": "#76
 const graphState = {
     cy: null,
     payload: null,
+    topK: 4,              // max edges kept per concept (densest-first) to tame clutter
     layers: { triple: true, semantic: true, cooccur: false, trail: true },
     showBadges: false,    // source-document badges under concept labels (off = cleaner)
     dateCut: null,        // null = now (no temporal filter)
     dateRange: null,      // [minMs, maxMs] from payload
     selectedDocs: null,   // Set of doc ids whose concepts are visible; null = all
-    expanded: new Set(),  // community ids that are expanded (progressive disclosure)
+    highlightCommunity: null, // community id highlighted from the Clusters panel
     ego: null,
 };
+
+// register the fcose layout extension once (clustered force-directed layout)
+if (window.cytoscape && window.cytoscapeFcose) {
+    try { window.cytoscape.use(window.cytoscapeFcose); } catch (e) { /* already registered */ }
+}
 
 function graphDocFilterKey() {
     return `pkm_graph_docs_${currentDomain}`;
@@ -901,6 +907,12 @@ function initConnections() {
         hideLoading();
     });
 
+    document.getElementById("graph-topk").addEventListener("input", (e) => {
+        graphState.topK = parseInt(e.target.value, 10);
+        document.getElementById("graph-topk-value").textContent = graphState.topK;
+        rebuildGraphView();
+    });
+
     let dateDebounce = null;
     document.getElementById("graph-date").addEventListener("input", (e) => {
         const pct = parseInt(e.target.value, 10);
@@ -935,18 +947,6 @@ function initConnections() {
     document.getElementById("graph-show-badges").addEventListener("click", (e) => {
         e.target.classList.toggle("active");
         graphState.showBadges = e.target.classList.contains("active");
-        rebuildGraphView();
-    });
-
-    document.getElementById("graph-expand-all").addEventListener("click", () => {
-        const all = new Set((graphState.payload?.communities || []).map(c => c.id));
-        graphState.expanded = all;
-        renderCommunityPanel(graphState.payload);
-        rebuildGraphView();
-    });
-    document.getElementById("graph-collapse-all").addEventListener("click", () => {
-        graphState.expanded = new Set();
-        renderCommunityPanel(graphState.payload);
         rebuildGraphView();
     });
 
@@ -999,9 +999,7 @@ async function renderConnections() {
         const saved = localStorage.getItem(graphDocFilterKey());
         graphState.selectedDocs = saved ? new Set(JSON.parse(saved)) : null;
     } catch { graphState.selectedDocs = null; }
-
-    // start collapsed: every community shown as a single cluster bubble
-    graphState.expanded = new Set();
+    graphState.highlightCommunity = null;
 
     const hasConcepts = payload.nodes.length > 0;
     wrapEl.style.display = hasConcepts ? "block" : "none";
@@ -1020,98 +1018,93 @@ function docBadge(title) {
     return (title || "?").split(/\s+/)[0].slice(0, 6);
 }
 
-// Cluster-collapse model: collapsed communities render as one bubble; expanded
-// ones render their concept nodes. Edges are aggregated by display node so the
-// initial view shows only a handful of cluster bubbles (no hairball).
+// Full concept graph: every concept is a node; the fcose layout pulls each
+// community into its own spatial region. Edges are pruned to top-K per concept
+// so dense within-cluster cliques don't form a hairball.
 function graphCyElements(payload) {
-    const { layers, dateCut, selectedDocs, showBadges, expanded } = graphState;
+    const { topK, layers, dateCut, selectedDocs, showBadges } = graphState;
     const inDate = (iso) => !dateCut || !iso || isNaN(Date.parse(iso)) || iso <= dateCut;
     const passes = (n) => inDate(n.created_at) &&
         (selectedDocs === null || (n.doc_ids || []).some(id => selectedDocs.has(id)));
 
-    const visibleConcepts = payload.nodes.filter(passes);
-    const conceptById = new Map(visibleConcepts.map(n => [n.id, n]));
-    const commLabel = {};
-    payload.communities.forEach(c => { commLabel[c.id] = c.label; });
+    const visible = payload.nodes.filter(passes);
+    const ids = new Set(visible.map(n => n.id));
+    const nodes = visible.map(n => {
+        const badge = (n.docs || []).map(docBadge).join("·");
+        return { data: { ...n, type: "concept",
+            display: showBadges && badge ? `${n.label}\n[${badge}]` : n.label } };
+    });
 
-    // display id for a concept: itself if its community is expanded, else the cluster bubble
-    const dispId = (n) => expanded.has(n.community) ? n.id : `cluster::${n.community}`;
+    // candidate edges among visible nodes, per active layers
+    const candidates = payload.edges.filter(e =>
+        ids.has(e.source) && ids.has(e.target) && layers[e.kind] !== false);
 
-    // small clusters add visual noise when collapsed: hide their bubbles until
-    // the user opens them from the side panel (concepts still reachable there)
-    const MIN_BUBBLE = 3;
-    const commSize = {};
-    visibleConcepts.forEach(n => { commSize[n.community] = (commSize[n.community] || 0) + 1; });
-
-    // build nodes: expanded concepts + cluster bubbles for collapsed communities
-    const nodes = [];
-    const clusterAgg = new Map(); // cid -> {count, community}
-    for (const n of visibleConcepts) {
-        if (expanded.has(n.community)) {
-            const badge = (n.docs || []).map(docBadge).join("·");
-            nodes.push({ data: {
-                ...n, type: "concept",
-                display: showBadges && badge ? `${n.label}\n[${badge}]` : n.label,
-            }});
-        } else if (commSize[n.community] >= MIN_BUBBLE) {
-            const agg = clusterAgg.get(n.community) || { count: 0, community: n.community };
-            agg.count += 1;
-            clusterAgg.set(n.community, agg);
+    // keep each node's strongest topK edges (typed/triple always kept)
+    const sorted = candidates.slice().sort((a, b) => (b.weight || 0) - (a.weight || 0));
+    const perNode = new Map();
+    const kept = [];
+    for (const e of sorted) {
+        if (e.kind === "triple") { kept.push(e); continue; }
+        const cs = perNode.get(e.source) || 0;
+        const ct = perNode.get(e.target) || 0;
+        if (cs < topK || ct < topK) {
+            kept.push(e);
+            perNode.set(e.source, cs + 1);
+            perNode.set(e.target, ct + 1);
         }
-        // small collapsed clusters: skipped here, available via the Clusters panel
     }
-    for (const [cid, agg] of clusterAgg) {
-        nodes.push({ data: {
-            id: `cluster::${cid}`, type: "cluster", community: cid,
-            label: commLabel[cid] || `Cluster ${cid}`, count: agg.count,
-            display: `${commLabel[cid] || `Cluster ${cid}`}\n(${agg.count})`,
-        }});
-    }
-    const nodeIds = new Set(nodes.map(n => n.data.id));
+    const edges = kept.map((e, i) => ({ data: {
+        id: `e${i}`, source: e.source, target: e.target, kind: e.kind,
+        weight: e.weight || 1,
+        label: e.kind === "cooccur" ? (e.shared_docs || []).join(" · ") : (e.label || ""),
+        category: e.category || "",
+    }}));
 
-    // aggregate edges by display endpoints
-    const agg = new Map(); // "a||b" -> {source,target,kinds:Set,weight}
-    for (const e of payload.edges) {
-        if (graphState.layers[e.kind] === false) continue;
-        const sn = conceptById.get(e.source), tn = conceptById.get(e.target);
-        if (!sn || !tn) continue;
-        const a = dispId(sn), b = dispId(tn);
-        if (a === b) continue; // inside one collapsed cluster: hidden
-        if (!nodeIds.has(a) || !nodeIds.has(b)) continue;
-        const key = a < b ? `${a}||${b}` : `${b}||${a}`;
-        const cur = agg.get(key) || { source: a, target: b, kinds: new Set(), weight: 0, label: "", category: "" };
-        cur.kinds.add(e.kind);
-        cur.weight += e.weight || 1;
-        // keep a representative label/category only for concept-to-concept typed edges
-        if (e.kind === "triple" && a.indexOf("cluster::") !== 0 && b.indexOf("cluster::") !== 0) {
-            cur.label = e.label || cur.label; cur.category = e.category || cur.category;
-        } else if (e.kind === "semantic" && !cur.label && a.indexOf("cluster::") !== 0 && b.indexOf("cluster::") !== 0) {
-            cur.label = e.label || "";
-        }
-        agg.set(key, cur);
-    }
-
-    const edges = [];
-    let i = 0;
-    for (const [, e] of agg) {
-        const isMeta = e.source.indexOf("cluster::") === 0 || e.target.indexOf("cluster::") === 0;
-        const kind = e.kinds.has("triple") ? "triple"
-            : e.kinds.has("semantic") ? "semantic"
-            : e.kinds.has("trail") ? "trail" : "cooccur";
-        edges.push({ data: {
-            id: `e${i++}`, source: e.source, target: e.target,
-            kind: isMeta ? "meta" : kind, baseKind: kind,
-            weight: e.weight, count: e.weight,
-            label: isMeta ? "" : (kind === "cooccur" ? "" : e.label || ""),
-            category: e.category || "",
-        }});
-    }
-
-    // drop concept nodes left isolated (cluster bubbles always shown)
+    // drop isolated nodes (no surviving edge)
     const connected = new Set();
     edges.forEach(e => { connected.add(e.data.source); connected.add(e.data.target); });
-    const keptNodes = nodes.filter(n => n.data.type === "cluster" || connected.has(n.data.id));
-    return [...keptNodes, ...edges];
+    const keptNodes = nodes.filter(n => connected.has(n.data.id));
+
+    // group concepts into community compound boxes so each cluster occupies its
+    // own labelled region (fcose lays out compounds as separated clusters)
+    const commLabel = {};
+    payload.communities.forEach(c => { commLabel[c.id] = c.label; });
+    const usedComm = new Map(); // cid -> member count
+    keptNodes.forEach(n => {
+        const c = n.data.community;
+        if (c >= 0) usedComm.set(c, (usedComm.get(c) || 0) + 1);
+    });
+    const parents = [];
+    for (const [cid, count] of usedComm) {
+        if (count < 2) continue; // singletons float free, no box
+        parents.push({ data: {
+            id: `comm::${cid}`, type: "community", community: cid,
+            label: commLabel[cid] || `Cluster ${cid}`,
+        }});
+    }
+    const boxed = new Set(parents.map(p => p.data.community));
+    keptNodes.forEach(n => {
+        if (boxed.has(n.data.community)) n.data.parent = `comm::${n.data.community}`;
+    });
+    return [...parents, ...keptNodes, ...edges];
+}
+
+function graphLayout() {
+    if (window.cytoscapeFcose) {
+        return {
+            name: "fcose", quality: "proof", animate: false, randomize: true,
+            // community-aware spacing: same-cluster edges pull tight, cross-cluster
+            // edges stay long, so each community lands in its own spatial region
+            idealEdgeLength: (edge) =>
+                edge.source().data("community") === edge.target().data("community") ? 45 : 230,
+            edgeElasticity: (edge) =>
+                edge.source().data("community") === edge.target().data("community") ? 0.55 : 0.1,
+            nodeRepulsion: 7000, gravity: 0.2, gravityRange: 3.0, gravityCompound: 1.2,
+            numIter: 3000, packComponents: true, nodeSeparation: 110, padding: 45,
+        };
+    }
+    return { name: "cose", animate: false, nodeRepulsion: 240000, idealEdgeLength: 110,
+             gravity: 0.3, padding: 40, componentSpacing: 150, nodeOverlap: 40 };
 }
 
 function rebuildGraphView() {
@@ -1125,32 +1118,28 @@ function rebuildGraphView() {
         container: document.getElementById("cy"),
         elements: graphCyElements(payload),
         style: [
-            { selector: "node[type='cluster']", style: {
+            { selector: "node[type='community']", style: {
                 "background-color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
-                "background-opacity": 0.92,
-                "width": (ele) => 44 + Math.min(ele.data("count"), 40) * 3,
-                "height": (ele) => 44 + Math.min(ele.data("count"), 40) * 3,
-                "label": "data(display)", "color": "#fff", "font-size": 13, "font-weight": 600,
-                "text-valign": "center", "text-halign": "center", "text-wrap": "wrap",
-                "text-max-width": "120px", "text-outline-width": 2,
-                "text-outline-color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
-                "border-width": 3, "border-color": "#0c0e13",
+                "background-opacity": 0.07, "shape": "round-rectangle", "padding": 14,
+                "border-width": 1, "border-style": "dashed",
+                "border-color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
+                "border-opacity": 0.5,
+                "label": "data(label)", "text-valign": "top", "text-halign": "center", "text-margin-y": -2,
+                "color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
+                "font-size": 13, "font-weight": 700, "text-max-width": "200px", "text-wrap": "ellipsis",
             }},
             { selector: "node[type='concept']", style: {
                 "background-color": (ele) => GRAPH_PALETTE[Math.max(ele.data("community"), 0) % GRAPH_PALETTE.length],
-                "width": (ele) => 14 + ele.data("freq") * 5 + ele.data("centrality") * 30,
-                "height": (ele) => 14 + ele.data("freq") * 5 + ele.data("centrality") * 30,
+                "width": (ele) => Math.min(16 + ele.data("freq") * 5 + ele.data("centrality") * 28, 46),
+                "height": (ele) => Math.min(16 + ele.data("freq") * 5 + ele.data("centrality") * 28, 46),
                 "label": "data(display)", "color": "#d8dbe4", "font-size": 10,
                 "text-valign": "bottom", "text-margin-y": 5,
-                "text-max-width": "110px", "text-wrap": "wrap",
+                "text-max-width": "120px", "text-wrap": "wrap",
                 "border-width": 2, "border-color": "#0c0e13",
             }},
             { selector: "node[kind='entity']", style: { "shape": "diamond", "border-color": "#4a5a7a" }},
             { selector: "edge", style: { "curve-style": "haystack", "haystack-radius": 0.2,
-                "line-color": "#3a3f50", "width": 1, "opacity": 0.7 }},
-            { selector: "edge[kind='meta']", style: {
-                "line-color": "#4a5060", "curve-style": "bezier",
-                "width": (ele) => 1.5 + Math.min(ele.data("count"), 20) * 0.5, "opacity": 0.55 }},
+                "line-color": "#3a3f50", "width": 1, "opacity": 0.65 }},
             { selector: "edge[kind='semantic']", style: { "line-color": "#8a93b8",
                 "width": (ele) => 1.2 + Math.min(ele.data("weight"), 3) * 0.8 }},
             { selector: "edge[kind='triple']", style: {
@@ -1160,68 +1149,57 @@ function rebuildGraphView() {
             { selector: "edge[kind='trail']", style: { "line-style": "dotted", "line-color": "#4e79a7", "width": 2, "curve-style": "bezier" }},
             { selector: "edge[kind='cooccur']", style: { "line-style": "dashed", "line-color": "#3d4252", "width": 1 }},
             { selector: ".label-hidden", style: { "text-opacity": 0 }},
-            { selector: ".faded", style: { "opacity": 0.08, "text-opacity": 0.03 }},
+            { selector: ".faded", style: { "opacity": 0.07, "text-opacity": 0.03 }},
             { selector: ".hl-edge", style: {
                 "label": "data(label)", "font-size": 9, "color": "#e8b34b",
                 "text-background-color": "#0c0e13", "text-background-opacity": 0.85, "text-background-padding": "3px",
                 "text-wrap": "ellipsis", "text-max-width": "180px", "curve-style": "bezier" }},
             { selector: "node.search-hit", style: { "border-color": "#e8b34b", "border-width": 3 }},
         ],
-        layout: { name: "cose", animate: false, nodeRepulsion: 240000, idealEdgeLength: 130,
-                  gravity: 0.3, padding: 40, componentSpacing: 150, nodeOverlap: 40 },
+        layout: graphLayout(),
         wheelSensitivity: 0.2,
     });
     wireGraphInteractions();
     wireZoomAdaptiveLabels();
     renderGraphLegend(graphState.payload);
+    if (graphState.highlightCommunity !== null) highlightCommunity(graphState.highlightCommunity);
     applyGraphSearch(document.getElementById("graph-search").value.trim().toLowerCase());
 }
 
-// Below this zoom only cluster bubbles and hub concepts keep labels.
-const LABEL_ZOOM_THRESHOLD = 0.9;
+// Below this zoom only hub concepts keep labels (overview readability).
+const LABEL_ZOOM_THRESHOLD = 0.85;
 
 function wireZoomAdaptiveLabels() {
     const cy = graphState.cy;
-    const minor = cy.nodes().filter(n => n.data("type") === "concept" &&
-        n.data("freq") < 2 && n.data("centrality") < 0.05);
+    const minor = cy.nodes().filter(n => n.data("freq") < 2 && n.data("centrality") < 0.06);
     let scheduled = false;
     const update = () => {
         scheduled = false;
         minor.toggleClass("label-hidden", cy.zoom() < LABEL_ZOOM_THRESHOLD);
     };
-    cy.on("zoom", () => {
-        if (!scheduled) { scheduled = true; requestAnimationFrame(update); }
-    });
+    cy.on("zoom", () => { if (!scheduled) { scheduled = true; requestAnimationFrame(update); } });
     update();
 }
 
 function wireGraphInteractions() {
     const cy = graphState.cy;
 
-    cy.on("mouseover", "node", (evt) => {
+    cy.on("mouseover", "node[type='concept']", (evt) => {
         if (graphState.ego) return;
         const hood = evt.target.closedNeighborhood();
         cy.elements().difference(hood).addClass("faded");
         hood.nodes().removeClass("label-hidden");
         evt.target.connectedEdges().addClass("hl-edge");
     });
-    cy.on("mouseout", "node", () => {
+    cy.on("mouseout", "node[type='concept']", () => {
         if (graphState.ego) return;
         cy.elements().removeClass("faded hl-edge");
         if (cy.zoom() < LABEL_ZOOM_THRESHOLD) {
-            cy.nodes().filter(n => n.data("type") === "concept" &&
-                n.data("freq") < 2 && n.data("centrality") < 0.05).addClass("label-hidden");
+            cy.nodes().filter(n => n.data("freq") < 2 && n.data("centrality") < 0.06).addClass("label-hidden");
         }
+        if (graphState.highlightCommunity !== null) highlightCommunity(graphState.highlightCommunity);
     });
 
-    // click a cluster bubble -> expand it (progressive disclosure)
-    cy.on("tap", "node[type='cluster']", (evt) => {
-        graphState.expanded.add(evt.target.data("community"));
-        renderCommunityPanel(graphState.payload);
-        rebuildGraphView();
-    });
-
-    // click a concept -> ego focus
     cy.on("tap", "node[type='concept']", (evt) => {
         const hood = evt.target.closedNeighborhood();
         cy.elements().difference(hood).addClass("faded");
@@ -1233,7 +1211,6 @@ function wireGraphInteractions() {
 
     cy.on("tap", (evt) => { if (evt.target === cy && graphState.ego) exitGraphEgo(); });
 
-    // double-click a concept -> open its first source document summary
     cy.on("dbltap", "node[type='concept']", (evt) => {
         const docs = evt.target.data("docs") || [];
         if (docs.length) openSummaryFromKnowledgeMap(docs[0]);
@@ -1245,14 +1222,24 @@ function exitGraphEgo() {
     graphState.ego = null;
     graphState.cy.elements().removeClass("faded hl-edge");
     document.getElementById("graph-ego-banner").classList.remove("show");
-    graphState.cy.animate({ fit: { padding: 40 }, duration: 300 });
+    if (graphState.highlightCommunity !== null) highlightCommunity(graphState.highlightCommunity);
+    else graphState.cy.animate({ fit: { padding: 40 }, duration: 300 });
+}
+
+function highlightCommunity(cid) {
+    const cy = graphState.cy;
+    if (!cy) return;
+    cy.elements().removeClass("faded");
+    if (cid === null) return;
+    const members = cy.nodes().filter(n => n.data("community") === cid);
+    cy.elements().difference(members.union(members.edgesWith(members))).addClass("faded");
 }
 
 function applyGraphSearch(query) {
     const cy = graphState.cy;
     if (!cy) return;
     cy.nodes().removeClass("search-hit");
-    if (!graphState.ego) cy.elements().removeClass("faded");
+    if (!graphState.ego && graphState.highlightCommunity === null) cy.elements().removeClass("faded");
     if (!query) return;
     const hits = cy.nodes().filter(n => (n.data("label") || "").toLowerCase().includes(query));
     hits.addClass("search-hit");
@@ -1326,25 +1313,30 @@ function renderCommunityPanel(payload) {
     }
     container.innerHTML = rows.map(c => {
         const color = GRAPH_PALETTE[c.id % GRAPH_PALETTE.length];
-        const open = graphState.expanded.has(c.id);
-        return `<div class="cluster-row ${open ? "open" : ""}" data-community="${c.id}">` +
-               `<span class="caret">${open ? "▾" : "▸"}</span>` +
+        const active = graphState.highlightCommunity === c.id ? "active" : "";
+        return `<div class="cluster-row ${active}" data-community="${c.id}">` +
                `<span class="swatch" style="background:${color}"></span>${escapeHtml(c.label)}` +
                `<span class="count">${counts[c.id]}</span></div>`;
     }).join("");
     container.querySelectorAll(".cluster-row").forEach(row => {
         row.addEventListener("click", () => {
             const cid = parseInt(row.dataset.community, 10);
-            if (graphState.expanded.has(cid)) graphState.expanded.delete(cid);
-            else graphState.expanded.add(cid);
+            graphState.highlightCommunity = graphState.highlightCommunity === cid ? null : cid;
             renderCommunityPanel(payload);
-            rebuildGraphView();
+            const cy = graphState.cy;
+            if (!cy) return;
+            if (graphState.highlightCommunity === null) {
+                cy.elements().removeClass("faded");
+            } else {
+                highlightCommunity(cid);
+                const members = cy.nodes().filter(n => n.data("community") === cid);
+                if (members.length) cy.animate({ fit: { eles: members, padding: 80 }, duration: 350 });
+            }
         });
     });
 }
 
-// Learning recommendations replace the artificial "bridge gap" prompts:
-// study questions grounded in the actual cluster topics.
+// Study questions grounded in cluster topics; click to ask in Chat.
 function renderLearningPanel(payload) {
     const container = document.getElementById("learning-list");
     const questions = payload.learning_questions || [];
