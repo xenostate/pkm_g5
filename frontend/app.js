@@ -996,10 +996,12 @@ function initConnections() {
     const handle = document.querySelector(".panel-handle");
     const layout = document.querySelector(".connections-layout");
     if (handle && layout) {
+        // panel starts collapsed (see markup); handle reflects current state
+        handle.textContent = layout.classList.contains("panel-collapsed") ? "‹" : "›";
         handle.addEventListener("click", () => {
             const collapsed = layout.classList.toggle("panel-collapsed");
             handle.textContent = collapsed ? "‹" : "›";
-            setTimeout(() => { if (graphState.cy) graphState.cy.resize(); }, 260);
+            setTimeout(() => { if (graphState.cy) { graphState.cy.resize(); graphState.cy.fit(undefined, 45); } }, 260);
         });
     }
 }
@@ -1255,13 +1257,16 @@ function wireZoomAdaptiveLabels() {
 function wireGraphInteractions() {
     const cy = graphState.cy;
 
-    // hover: gently surface the node's neighbourhood + label the connections
+    // hover: gently surface the node's neighbourhood + label the connections.
+    // While a cluster is focused, a faded (background) node ignores hover so the
+    // dimmed graph behind it can't be interacted with.
     cy.on("mouseover", "node[type='concept']", (evt) => {
         if (graphState.ego) return;
+        if (graphState.highlightCommunity !== null && evt.target.hasClass("faded")) return;
         const hood = evt.target.closedNeighborhood();
         cy.elements().difference(hood).addClass("dimmed");
         hood.nodes().removeClass("label-hidden").addClass("hot");
-        evt.target.connectedEdges().addClass("hl-edge");
+        evt.target.connectedEdges().not(".faded").addClass("hl-edge");
     });
     cy.on("mouseout", "node[type='concept']", () => {
         if (graphState.ego) return;
@@ -1273,6 +1278,8 @@ function wireGraphInteractions() {
     // click: focus the node, spread its neighbours on a ring, explain in inspector
     cy.on("tap", "node[type='concept']", (evt) => {
         const node = evt.target;
+        // during cluster focus, a background (faded) node is not clickable
+        if (graphState.highlightCommunity !== null && node.hasClass("faded")) return;
         // snapshot the current (force-directed) positions BEFORE the ring layout
         // disturbs them, so closing the focus can restore the map exactly
         if (!graphState.basePositions) {
@@ -1303,7 +1310,13 @@ function wireGraphInteractions() {
         graphState.cy.one("layoutstop", () => layoutLabelsOutward(node, hood));
     });
 
-    cy.on("tap", (evt) => { if (evt.target === cy && graphState.ego) exitGraphEgo(); });
+    // click empty space: leave node focus, or clear a cluster highlight, and
+    // zoom back out to the full graph
+    cy.on("tap", (evt) => {
+        if (evt.target !== cy) return;
+        if (graphState.ego) { exitGraphEgo(); return; }
+        if (graphState.highlightCommunity !== null) clearCommunityHighlight();
+    });
 
     // hovering a single edge reveals just its reason — but a dimmed/faded edge
     // (outside the current focus) stays quiet so only the relevant line responds
@@ -1395,6 +1408,16 @@ function highlightCommunity(cid) {
     if (cid === null) return;
     const members = cy.nodes().filter(n => n.data("community") === cid);
     cy.elements().difference(members.union(members.edgesWith(members))).addClass("faded");
+}
+
+// clear a cluster highlight and zoom back out to the whole graph
+function clearCommunityHighlight() {
+    graphState.highlightCommunity = null;
+    if (graphState.cy) {
+        graphState.cy.elements().removeClass("faded");
+        graphState.cy.animate({ fit: { padding: 45 }, duration: 300 });
+    }
+    renderCommunityPanel(graphState.payload);
 }
 
 function applyGraphSearch(query) {
@@ -1492,17 +1515,14 @@ function renderCommunityPanel(payload) {
     container.querySelectorAll(".cluster-row").forEach(row => {
         row.addEventListener("click", () => {
             const cid = parseInt(row.dataset.community, 10);
-            graphState.highlightCommunity = graphState.highlightCommunity === cid ? null : cid;
+            if (graphState.highlightCommunity === cid) { clearCommunityHighlight(); return; }
+            graphState.highlightCommunity = cid;
             renderCommunityPanel(payload);
             const cy = graphState.cy;
             if (!cy) return;
-            if (graphState.highlightCommunity === null) {
-                cy.elements().removeClass("faded");
-            } else {
-                highlightCommunity(cid);
-                const members = cy.nodes().filter(n => n.data("community") === cid);
-                if (members.length) cy.animate({ fit: { eles: members, padding: 80 }, duration: 350 });
-            }
+            highlightCommunity(cid);
+            const members = cy.nodes().filter(n => n.data("community") === cid);
+            if (members.length) cy.animate({ fit: { eles: members, padding: 80 }, duration: 350 });
         });
     });
 }
