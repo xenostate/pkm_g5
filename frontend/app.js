@@ -1278,8 +1278,13 @@ function wireGraphInteractions() {
     // click: focus the node, spread its neighbours on a ring, explain in inspector
     cy.on("tap", "node[type='concept']", (evt) => {
         const node = evt.target;
-        // during cluster focus, a background (faded) node is not clickable
-        if (graphState.highlightCommunity !== null && node.hasClass("faded")) return;
+        // during cluster focus, clicking a faded background node clears the
+        // highlight (it isn't selectable) — this also covers the case where a
+        // faded node sits under what looks like empty space
+        if (graphState.highlightCommunity !== null && node.hasClass("faded")) {
+            clearCommunityHighlight();
+            return;
+        }
         // snapshot the current (force-directed) positions BEFORE the ring layout
         // disturbs them, so closing the focus can restore the map exactly
         if (!graphState.basePositions) {
@@ -1316,6 +1321,12 @@ function wireGraphInteractions() {
         if (evt.target !== cy) return;
         if (graphState.ego) { exitGraphEgo(); return; }
         if (graphState.highlightCommunity !== null) clearCommunityHighlight();
+    });
+
+    // a faded edge in the background also dismisses the cluster focus, so the
+    // dimmed lines covering "empty" space don't swallow the click
+    cy.on("tap", "edge", (evt) => {
+        if (graphState.highlightCommunity !== null && evt.target.hasClass("faded")) clearCommunityHighlight();
     });
 
     // hovering a single edge reveals just its reason — but a dimmed/faded edge
