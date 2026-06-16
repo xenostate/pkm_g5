@@ -1517,7 +1517,8 @@ body {
 .graph-doc-filter input[type="checkbox"] { accent-color: #c8a23f; }
 .graph-doc-filter .doc-filter-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #community-list { max-height: 240px; overflow-y: auto; }
-.cluster-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; }
+.cluster-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: grab; font-size: 0.82rem; user-select: none; }
+.cluster-row:active, .cluster-row.active { cursor: grabbing; }
 .cluster-row:hover, .cluster-row.open { background: var(--surface-hover); }
 .cluster-row .caret { width: 12px; color: var(--text-secondary); flex-shrink: 0; }
 .cluster-row.open .caret { color: #c8a23f; }

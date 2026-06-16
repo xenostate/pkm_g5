@@ -1524,16 +1524,25 @@ function renderCommunityPanel(payload) {
                `<span class="count">${counts[c.id]}</span></div>`;
     }).join("");
     container.querySelectorAll(".cluster-row").forEach(row => {
-        row.addEventListener("click", () => {
+        // press-and-hold: highlight + zoom while held, restore on release
+        row.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
             const cid = parseInt(row.dataset.community, 10);
-            if (graphState.highlightCommunity === cid) { clearCommunityHighlight(); return; }
             graphState.highlightCommunity = cid;
-            renderCommunityPanel(payload);
+            row.classList.add("active");
             const cy = graphState.cy;
-            if (!cy) return;
-            highlightCommunity(cid);
-            const members = cy.nodes().filter(n => n.data("community") === cid);
-            if (members.length) cy.animate({ fit: { eles: members, padding: 80 }, duration: 350 });
+            if (cy) {
+                highlightCommunity(cid);
+                const members = cy.nodes().filter(n => n.data("community") === cid);
+                if (members.length) cy.animate({ fit: { eles: members, padding: 80 }, duration: 250 });
+            }
+            const release = () => {
+                document.removeEventListener("pointerup", release);
+                document.removeEventListener("pointercancel", release);
+                clearCommunityHighlight();
+            };
+            document.addEventListener("pointerup", release);
+            document.addEventListener("pointercancel", release);
         });
     });
 }
