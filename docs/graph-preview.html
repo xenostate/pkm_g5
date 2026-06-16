@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge Map — 미리보기</title>
+<script src="https://unpkg.com/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+    --ink: #0b0d12;
+    --ink-2: #11141c;
+    --ink-3: #181c27;
+    --line: #232838;
+    --text: #d8dbe4;
+    --text-dim: #8b91a3;
+    --amber: #e8b34b;
+    --amber-dim: #9a7836;
+    --c0: #e15759; --c1: #4e79a7; --c2: #59a14f; --c3: #f28e2b; --c4: #b07aa1;
+    --radius: 14px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+    background: var(--ink);
+    color: var(--text);
+    font-family: "IBM Plex Sans KR", sans-serif;
+    font-weight: 300;
+    overflow: hidden;
+}
+/* atmosphere */
+body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+        radial-gradient(900px 600px at 18% 12%, rgba(225,87,89,0.07), transparent 60%),
+        radial-gradient(800px 600px at 85% 80%, rgba(78,121,167,0.08), transparent 60%),
+        radial-gradient(600px 500px at 70% 15%, rgba(232,179,75,0.05), transparent 60%);
+}
+body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 40; opacity: 0.5;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+.shell { position: relative; z-index: 1; display: grid; grid-template-rows: auto auto 1fr auto; height: 100vh; padding: 18px 22px 0; gap: 12px; }
+
+header { display: flex; align-items: baseline; gap: 16px; animation: rise .6s ease both; }
+h1 { font-family: "Instrument Serif", serif; font-weight: 400; font-size: 30px; letter-spacing: 0.3px; }
+h1 em { color: var(--amber); font-style: italic; }
+.sub { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+.badge { margin-left: auto; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--amber); border: 1px solid var(--amber-dim); border-radius: 99px; padding: 4px 12px; }
+
+/* toolbar */
+.toolbar { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 16px; animation: rise .6s .08s ease both; }
+.toolbar input[type="search"] {
+    width: 210px; background: var(--ink-3); border: 1px solid var(--line); border-radius: 9px;
+    color: var(--text); padding: 7px 12px; font-family: inherit; font-size: 13px; outline: none; transition: border-color .2s;
+}
+.toolbar input[type="search"]:focus { border-color: var(--amber-dim); }
+.ctl { display: flex; align-items: center; gap: 9px; font-size: 12px; color: var(--text-dim); }
+.ctl b { color: var(--text); font-weight: 500; font-family: "IBM Plex Mono", monospace; font-size: 12px; min-width: 36px; }
+input[type="range"] { -webkit-appearance: none; width: 130px; height: 3px; background: var(--line); border-radius: 2px; cursor: pointer; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--amber); border: 2px solid var(--ink); box-shadow: 0 0 8px rgba(232,179,75,.5); }
+.layers { display: flex; gap: 6px; margin-left: auto; }
+.chip {
+    font-size: 12px; padding: 6px 13px; border-radius: 99px; cursor: pointer; user-select: none;
+    border: 1px solid var(--line); color: var(--text-dim); background: transparent; font-family: inherit; transition: all .18s;
+}
+.chip.on { color: var(--ink); background: var(--amber); border-color: var(--amber); font-weight: 500; }
+.chip:hover:not(.on) { border-color: var(--amber-dim); color: var(--text); }
+.btn-fit { font-family: "IBM Plex Mono", monospace; font-size: 11px; background: var(--ink-3); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 7px 14px; cursor: pointer; transition: border-color .2s; }
+.btn-fit:hover { border-color: var(--amber-dim); }
+
+/* main */
+.main { display: grid; grid-template-columns: 1fr 295px; gap: 12px; min-height: 0; animation: rise .6s .16s ease both; }
+#cy-wrap { position: relative; background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+#cy { position: absolute; inset: 0; }
+.legend {
+    position: absolute; left: 14px; bottom: 12px; z-index: 10; display: flex; gap: 14px; flex-wrap: wrap;
+    font-size: 11px; color: var(--text-dim); background: rgba(11,13,18,.75); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px;
+}
+.legend span { display: flex; align-items: center; gap: 6px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; }
+.line-sw { width: 16px; height: 0; border-top: 2px solid #7a7a88; }
+.line-sw.dashed { border-top-style: dashed; border-color: var(--amber-dim); }
+.line-sw.dotted { border-top-style: dotted; border-color: #4e79a7; border-top-width: 3px; }
+.hint {
+    position: absolute; right: 14px; top: 12px; z-index: 10; font-family: "IBM Plex Mono", monospace; font-size: 10.5px;
+    color: var(--text-dim); background: rgba(11,13,18,.75); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; line-height: 1.9; letter-spacing: .3px;
+}
+.hint b { color: var(--amber); font-weight: 500; }
+.ego-banner {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 10; display: none;
+    font-size: 12px; color: var(--ink); background: var(--amber); border-radius: 99px; padding: 6px 18px; font-weight: 500;
+    box-shadow: 0 4px 24px rgba(232,179,75,.35); cursor: pointer;
+}
+.ego-banner.show { display: block; animation: pop .25s ease; }
+
+/* side rail */
+.rail { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; padding-bottom: 4px; }
+.panel { background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px; }
+.panel h3 { font-family: "Instrument Serif", serif; font-weight: 400; font-size: 17px; margin-bottom: 4px; }
+.panel .desc { font-size: 11.5px; color: var(--text-dim); margin-bottom: 11px; line-height: 1.5; }
+.cluster-row { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 9px; cursor: pointer; font-size: 12.5px; transition: background .15s; }
+.cluster-row:hover, .cluster-row.active { background: var(--ink-3); }
+.cluster-row .n { margin-left: auto; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--text-dim); }
+.gap-card { border: 1px dashed var(--amber-dim); border-radius: 11px; padding: 11px 12px; margin-bottom: 9px; font-size: 12px; line-height: 1.6; }
+.gap-card .pair { font-weight: 500; color: var(--amber); font-size: 12.5px; margin-bottom: 3px; }
+.gap-card .why { color: var(--text-dim); font-size: 11.5px; }
+.inspector .empty { color: var(--text-dim); font-size: 12px; font-style: italic; }
+.inspector .title { font-size: 14.5px; font-weight: 500; margin-bottom: 2px; }
+.inspector .meta { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--text-dim); margin-bottom: 9px; }
+.inspector .sum { font-size: 12px; line-height: 1.65; color: #b9bdc9; }
+.tagrow { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 9px; }
+.tag { font-size: 10.5px; color: var(--amber); border: 1px solid var(--amber-dim); border-radius: 99px; padding: 2px 9px; }
+
+footer { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--text-dim); text-align: center; padding: 10px 0 12px; letter-spacing: .5px; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: translateX(-50%) scale(.92); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
+::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="shell">
+    <header>
+        <h1>Knowledge <em>Map</em></h1>
+        <span class="sub">communities · gaps · typed relations · time</span>
+        <span class="badge">PREVIEW — mock data</span>
+    </header>
+
+    <div class="toolbar">
+        <input type="search" id="search" placeholder="노드 검색… (Enter: 이동)">
+        <span class="ctl">similarity ≥ <b id="thr-val">0.50</b><input type="range" id="thr" min="0.3" max="1" step="0.05" value="0.5"></span>
+        <span class="ctl">as of <b id="date-val">now</b><input type="range" id="date" min="0" max="100" value="100"></span>
+        <div class="layers">
+            <button class="chip on" data-layer="concept">concepts</button>
+            <button class="chip on" data-layer="similarity">similarity</button>
+            <button class="chip on" data-layer="triple">relations</button>
+            <button class="chip on" data-layer="trail">trails</button>
+            <button class="chip" id="all-concepts">+low-degree</button>
+        </div>
+        <button class="btn-fit" id="fit">FIT</button>
+    </div>
+
+    <div class="main">
+        <div id="cy-wrap">
+            <div id="cy"></div>
+            <div class="ego-banner" id="ego-banner">포커스 모드 — 클릭하여 전체 보기로 복귀</div>
+            <div class="hint">
+                <b>hover</b> 이웃 하이라이트 · <b>click</b> 포커스<br>
+                <b>dblclick</b> 요약 열기 · <b>배경 클릭</b> 복귀
+            </div>
+            <div class="legend">
+                <span><span class="dot" style="background:var(--c0)"></span>SE 핵심</span>
+                <span><span class="dot" style="background:var(--c1)"></span>프로세스·애자일</span>
+                <span><span class="dot" style="background:var(--c2)"></span>AI·RAG 노트</span>
+                <span><span class="line-sw"></span>similarity</span>
+                <span><span class="line-sw dashed"></span>concept</span>
+                <span><span class="line-sw" style="border-color:#f28e2b"></span>relation</span>
+                <span><span class="line-sw dotted"></span>trail</span>
+            </div>
+        </div>
+
+        <aside class="rail">
+            <div class="panel">
+                <h3>Clusters</h3>
+                <p class="desc">Louvain 커뮤니티 — 클릭하면 해당 군집만 강조됩니다.</p>
+                <div id="clusters"></div>
+            </div>
+            <div class="panel">
+                <h3>Bridge Ideas</h3>
+                <p class="desc">연결이 끊긴 지식 영역 — 두 영역을 잇는 노트를 써보세요.</p>
+                <div id="gaps"></div>
+            </div>
+            <div class="panel inspector" id="inspector">
+                <h3>Inspector</h3>
+                <p class="empty">노드를 더블클릭하면 요약이 표시됩니다.</p>
+            </div>
+        </aside>
+    </div>
+
+    <footer>PKM KNOWLEDGE MAP · INTERACTION PREVIEW · 실제 구현은 /api/graph 데이터로 렌더링됩니다</footer>
+</div>
+
+<script>
+const PALETTE = ["#e15759", "#4e79a7", "#59a14f", "#f28e2b", "#b07aa1"];
+const CAT_COLORS = { "is-a": "#4e79a7", "part-of": "#59a14f", "uses": "#76b7b2", "contrasts": "#e15759", "causes": "#f28e2b", "related": "#6b6b75" };
+
+// ── mock /api/graph payload (실데이터 형태와 동일한 계약) ──
+const DOCS = [
+    { id: "intro", label: "1.Introduction to SE", community: 0, centrality: .34, created_at: "2026-01-05", summary: "소프트웨어 공학의 정의, 중요성, 방법론과 윤리적 고려사항 전반을 다루는 입문 강의." },
+    { id: "syseng", label: "2.Systems Engineering", community: 0, centrality: .21, created_at: "2026-01-12", summary: "시스템 공학과 소프트웨어 공학의 관계, emergent properties, 사회기술적 시스템." },
+    { id: "req", label: "5.Requirements Engineering", community: 0, centrality: .27, created_at: "2026-02-02", summary: "요구사항 도출·분석·명세·검증 프로세스와 사용자/시스템 요구사항 구분." },
+    { id: "model", label: "6.System Modeling", community: 0, centrality: .14, created_at: "2026-02-20", summary: "UML 기반 구조/행위 모델링, 모델 주도 공학(MDE)." },
+    { id: "arch", label: "8.Architectural Design", community: 0, centrality: .12, created_at: "2026-03-04", summary: "아키텍처 패턴, 뷰, 설계 결정과 품질 속성의 관계." },
+    { id: "proc", label: "3.Software Processes", community: 1, centrality: .24, created_at: "2026-01-19", summary: "폭포수·점진적 개발·재사용 지향 프로세스 모델과 프로세스 활동." },
+    { id: "agile", label: "4.Agile Software Dev", community: 1, centrality: .19, created_at: "2026-01-26", summary: "애자일 선언, XP, 스크럼, 페어 프로그래밍과 리팩토링." },
+    { id: "rag", label: "RAG Survey 노트", community: 2, centrality: .29, created_at: "2026-04-15", summary: "Retrieval-Augmented Generation 핵심 구조: 검색기+생성기, 청킹과 임베딩 전략." },
+    { id: "grag", label: "GraphRAG 논문 메모", community: 2, centrality: .17, created_at: "2026-05-10", summary: "엔티티/관계 추출로 지식 그래프를 만들고 커뮤니티 요약으로 글로벌 질문에 답하는 기법." },
+    { id: "vdb", label: "Vector DB 비교", community: 2, centrality: .08, created_at: "2026-06-01", summary: "ChromaDB·FAISS·Milvus 로컬 벡터 스토어 비교와 코사인 유사도 검색." },
+];
+const CONCEPTS = [
+    { id: "c-proc", label: "Software process", degree: 3, community: 1, created_at: "2026-01-19" },
+    { id: "c-req", label: "Requirements", degree: 2, community: 0, created_at: "2026-02-02" },
+    { id: "c-emer", label: "Emergent properties", degree: 2, community: 0, created_at: "2026-01-12" },
+    { id: "c-man", label: "Agile manifesto", degree: 2, community: 1, created_at: "2026-01-26" },
+    { id: "c-emb", label: "Embedding", degree: 2, community: 2, created_at: "2026-04-15" },
+    { id: "c-kg", label: "Knowledge graph", degree: 2, community: 2, created_at: "2026-05-10" },
+    { id: "c-eth", label: "Professional ethics", degree: 1, community: 0, created_at: "2026-01-05" },
+    { id: "c-ref", label: "Refactoring", degree: 1, community: 1, created_at: "2026-01-26" },
+];
+const EDGES = [
+    // similarity (실선, 두께=유사도)
+    { s: "intro", t: "syseng", kind: "similarity", w: .96 }, { s: "intro", t: "req", kind: "similarity", w: .93 },
+    { s: "intro", t: "proc", kind: "similarity", w: .88 }, { s: "syseng", t: "req", kind: "similarity", w: .81 },
+    { s: "req", t: "model", kind: "similarity", w: .77 }, { s: "model", t: "arch", kind: "similarity", w: .73 },
+    { s: "intro", t: "arch", kind: "similarity", w: .58 }, { s: "proc", t: "agile", kind: "similarity", w: .91 },
+    { s: "agile", t: "req", kind: "similarity", w: .49 }, { s: "rag", t: "grag", kind: "similarity", w: .86 },
+    { s: "rag", t: "vdb", kind: "similarity", w: .71 }, { s: "grag", t: "vdb", kind: "similarity", w: .44 },
+    // concept membership (점선)
+    { s: "proc", t: "c-proc", kind: "concept" }, { s: "intro", t: "c-proc", kind: "concept" }, { s: "agile", t: "c-proc", kind: "concept" },
+    { s: "req", t: "c-req", kind: "concept" }, { s: "intro", t: "c-req", kind: "concept" },
+    { s: "syseng", t: "c-emer", kind: "concept" }, { s: "intro", t: "c-emer", kind: "concept" },
+    { s: "agile", t: "c-man", kind: "concept" }, { s: "proc", t: "c-man", kind: "concept" },
+    { s: "rag", t: "c-emb", kind: "concept" }, { s: "vdb", t: "c-emb", kind: "concept" },
+    { s: "grag", t: "c-kg", kind: "concept" }, { s: "rag", t: "c-kg", kind: "concept" },
+    { s: "intro", t: "c-eth", kind: "concept" }, { s: "agile", t: "c-ref", kind: "concept" },
+    // typed relations (SPO 트리플 — 2단계 기능)
+    { s: "c-kg", t: "c-emb", kind: "triple", label: "uses", category: "uses" },
+    { s: "grag", t: "rag", kind: "triple", label: "extends", category: "is-a" },
+    { s: "agile", t: "proc", kind: "triple", label: "is a kind of", category: "is-a" },
+    { s: "c-man", t: "c-ref", kind: "triple", label: "advocates", category: "causes" },
+    // session trail (Q&A 공동 인용 — 2단계 기능)
+    { s: "req", t: "agile", kind: "trail", w: 2, label: "함께 인용 ×2" },
+];
+const GAPS = [
+    { a: "SE 핵심", b: "AI·RAG 노트", suggestion: "'요구사항 공학'과 'RAG 검색'을 잇는 노트가 없습니다. 예: LLM으로 요구사항 문서를 질의하는 방법.", nodes: ["req", "rag"] },
+    { a: "프로세스·애자일", b: "AI·RAG 노트", suggestion: "애자일 프로세스에 AI 도구를 접목한 노트를 작성해 보세요.", nodes: ["agile", "grag"] },
+];
+
+// ── build elements ──
+function buildElements(opts) {
+    const { threshold, layers, showLowDegree, dateCut } = opts;
+    const nodes = [];
+    DOCS.forEach(d => { if (d.created_at <= dateCut) nodes.push({ data: { ...d, kind: "document" } }); });
+    if (layers.concept) CONCEPTS.forEach(c => {
+        if ((showLowDegree || c.degree >= 2) && c.created_at <= dateCut)
+            nodes.push({ data: { ...c, kind: "concept" } });
+    });
+    const ids = new Set(nodes.map(n => n.data.id));
+    const edges = EDGES
+        .filter(e => ids.has(e.s) && ids.has(e.t))
+        .filter(e => layers[e.kind] !== false)
+        .filter(e => e.kind !== "similarity" || e.w >= threshold)
+        .map((e, i) => ({ data: { id: "e" + i, source: e.s, target: e.t, kind: e.kind, weight: e.w || 1, label: e.label || (e.w ? "similarity " + e.w : ""), category: e.category || "" } }));
+    return [...nodes, ...edges];
+}
+
+const state = { threshold: 0.5, layers: { concept: true, similarity: true, triple: true, trail: true }, showLowDegree: false, dateCut: "2026-12-31", ego: null };
+let cy;
+
+function render(relayout = true) {
+    const elements = buildElements(state);
+    if (cy) cy.destroy();
+    cy = cytoscape({
+        container: document.getElementById("cy"),
+        elements,
+        style: [
+            { selector: "node[kind='document']", style: {
+                "background-color": ele => PALETTE[ele.data("community") % PALETTE.length],
+                "width": ele => 20 + ele.data("centrality") * 70,
+                "height": ele => 20 + ele.data("centrality") * 70,
+                "label": "data(label)", "color": "#d8dbe4", "font-size": 11, "font-family": "IBM Plex Sans KR",
+                "text-valign": "bottom", "text-margin-y": 7, "text-max-width": "130px", "text-wrap": "ellipsis",
+                "border-width": 2, "border-color": "#0b0d12", "transition-property": "opacity", "transition-duration": "0.15s",
+            }},
+            { selector: "node[kind='concept']", style: {
+                "shape": "round-rectangle", "background-color": "#1d2230", "border-width": 1, "border-color": "#3a4156",
+                "width": "label", "height": 18, "padding": "5px",
+                "label": "data(label)", "color": "#c8a23f", "font-size": 9.5, "font-family": "IBM Plex Sans KR",
+                "text-valign": "center", "text-max-width": "110px", "text-wrap": "ellipsis",
+            }},
+            { selector: "edge", style: { "curve-style": "straight", "line-color": "#2c3040", "width": 1, "opacity": .8 }},
+            { selector: "edge[kind='similarity']", style: { "line-color": "#5c6072", "width": ele => 1 + (ele.data("weight") - 0.3) * 4.5 }},
+            { selector: "edge[kind='concept']", style: { "line-style": "dashed", "line-color": "#574a1e", "width": 1 }},
+            { selector: "edge[kind='triple']", style: {
+                "line-color": ele => CAT_COLORS[ele.data("category")] || "#6b6b75", "width": 2,
+                "target-arrow-shape": "triangle", "target-arrow-color": ele => CAT_COLORS[ele.data("category")] || "#6b6b75",
+                "curve-style": "bezier", "arrow-scale": 0.8,
+            }},
+            { selector: "edge[kind='trail']", style: { "line-style": "dotted", "line-color": "#4e79a7", "width": 2.5 }},
+            { selector: ".faded", style: { "opacity": 0.1, "text-opacity": 0.04 }},
+            { selector: ".hl-edge", style: { "label": "data(label)", "font-size": 9, "color": "#e8b34b", "text-background-color": "#0b0d12", "text-background-opacity": .85, "text-background-padding": "3px", "font-family": "IBM Plex Mono" }},
+            { selector: "node.search-hit", style: { "border-color": "#e8b34b", "border-width": 3 }},
+        ],
+        layout: { name: "cose", animate: false, nodeRepulsion: 60000, idealEdgeLength: 95, gravity: 0.6, padding: 40 },
+        wheelSensitivity: 0.2,
+    });
+    wireInteractions();
+}
+
+function wireInteractions() {
+    // hover → 이웃만 보이기 + 연결 엣지 라벨 표시
+    cy.on("mouseover", "node", evt => {
+        if (state.ego) return;
+        const hood = evt.target.closedNeighborhood();
+        cy.elements().difference(hood).addClass("faded");
+        evt.target.connectedEdges().addClass("hl-edge");
+    });
+    cy.on("mouseout", "node", () => {
+        if (state.ego) return;
+        cy.elements().removeClass("faded hl-edge");
+    });
+    // click document → 포커스(ego) 모드
+    cy.on("tap", "node[kind='document']", evt => {
+        const hood = evt.target.closedNeighborhood();
+        cy.elements().difference(hood).addClass("faded");
+        hood.connectedEdges().addClass("hl-edge");
+        state.ego = evt.target.id();
+        document.getElementById("ego-banner").classList.add("show");
+        cy.animate({ fit: { eles: hood, padding: 70 }, duration: 300 });
+    });
+    // 배경 클릭 → 복귀
+    cy.on("tap", evt => {
+        if (evt.target === cy && state.ego) exitEgo();
+    });
+    // dblclick → inspector
+    cy.on("dbltap", "node", evt => showInspector(evt.target.data()));
+}
+
+function exitEgo() {
+    state.ego = null;
+    cy.elements().removeClass("faded hl-edge");
+    document.getElementById("ego-banner").classList.remove("show");
+    cy.animate({ fit: { padding: 40 }, duration: 300 });
+}
+document.getElementById("ego-banner").addEventListener("click", exitEgo);
+
+function showInspector(d) {
+    const el = document.getElementById("inspector");
+    const comm = ["SE 핵심", "프로세스·애자일", "AI·RAG 노트"][d.community] || "—";
+    el.innerHTML = `<h3>Inspector</h3>
+        <div class="title">${d.label}</div>
+        <div class="meta">${d.kind.toUpperCase()} · cluster: ${comm} · centrality ${(d.centrality ?? 0).toFixed(2)} · ${d.created_at || ""}</div>
+        <div class="sum">${d.summary || "컨셉 노드 — 이 개념을 인용하는 문서들이 연결되어 있습니다."}</div>
+        <div class="tagrow">${d.kind === "document" ? '<span class="tag">요약 보기</span><span class="tag">질문하기</span>' : '<span class="tag">관련 문서</span>'}</div>`;
+}
+
+// ── side panels ──
+function renderPanels() {
+    const counts = [0, 0, 0];
+    DOCS.forEach(d => counts[d.community]++);
+    document.getElementById("clusters").innerHTML = ["SE 핵심", "프로세스·애자일", "AI·RAG 노트"].map((name, i) =>
+        `<div class="cluster-row" data-c="${i}"><span class="dot" style="background:${PALETTE[i]}"></span>${name}<span class="n">${counts[i]} docs</span></div>`).join("");
+    document.querySelectorAll(".cluster-row").forEach(row => row.addEventListener("click", () => {
+        const c = +row.dataset.c;
+        const isActive = row.classList.contains("active");
+        document.querySelectorAll(".cluster-row").forEach(r => r.classList.remove("active"));
+        cy.elements().removeClass("faded");
+        if (!isActive) {
+            row.classList.add("active");
+            const members = cy.nodes().filter(n => n.data("community") === c);
+            cy.elements().difference(members.union(members.edgesWith(members))).addClass("faded");
+        }
+    }));
+    document.getElementById("gaps").innerHTML = GAPS.map((g, i) =>
+        `<div class="gap-card" data-i="${i}"><div class="pair">${g.a} ↔ ${g.b}</div><div class="why">${g.suggestion}</div></div>`).join("");
+    document.querySelectorAll(".gap-card").forEach(card => card.addEventListener("click", () => {
+        const g = GAPS[+card.dataset.i];
+        const pair = cy.getElementById(g.nodes[0]).union(cy.getElementById(g.nodes[1]));
+        cy.elements().addClass("faded");
+        pair.removeClass("faded");
+        cy.animate({ fit: { eles: pair, padding: 120 }, duration: 350 });
+        setTimeout(() => { if (!state.ego) cy.elements().removeClass("faded"); }, 2200);
+    }));
+}
+
+// ── toolbar ──
+document.getElementById("thr").addEventListener("input", e => {
+    state.threshold = +e.target.value;
+    document.getElementById("thr-val").textContent = state.threshold.toFixed(2);
+    render();
+});
+const DATE_MIN = new Date("2026-01-01").getTime(), DATE_MAX = new Date("2026-06-12").getTime();
+document.getElementById("date").addEventListener("input", e => {
+    const p = +e.target.value;
+    if (p >= 100) { state.dateCut = "2026-12-31"; document.getElementById("date-val").textContent = "now"; }
+    else {
+        const t = new Date(DATE_MIN + (DATE_MAX - DATE_MIN) * p / 100);
+        state.dateCut = t.toISOString().slice(0, 10);
+        document.getElementById("date-val").textContent = state.dateCut;
+    }
+    render();
+});
+document.querySelectorAll(".chip[data-layer]").forEach(chip => chip.addEventListener("click", () => {
+    chip.classList.toggle("on");
+    state.layers[chip.dataset.layer] = chip.classList.contains("on");
+    render();
+}));
+document.getElementById("all-concepts").addEventListener("click", e => {
+    e.target.classList.toggle("on");
+    state.showLowDegree = e.target.classList.contains("on");
+    render();
+});
+document.getElementById("fit").addEventListener("click", () => cy.fit(undefined, 40));
+document.getElementById("search").addEventListener("input", e => {
+    const q = e.target.value.trim().toLowerCase();
+    cy.nodes().removeClass("search-hit");
+    cy.elements().removeClass("faded");
+    if (!q) return;
+    const hits = cy.nodes().filter(n => n.data("label").toLowerCase().includes(q));
+    hits.addClass("search-hit");
+    cy.elements().difference(hits.union(hits.connectedEdges()).union(hits.neighborhood())).addClass("faded");
+});
+document.getElementById("search").addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+        const hit = cy.nodes(".search-hit").first();
+        if (hit.length) cy.animate({ center: { eles: hit }, zoom: 1.6, duration: 300 });
+    }
+});
+
+render();
+renderPanels();
+</script>
+</body>
+</html>

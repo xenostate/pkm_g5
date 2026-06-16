@@ -20,7 +20,7 @@ from scripts.indexer import get_chroma_collection, get_model
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
-RAG_MODEL = os.environ.get("RAG_MODEL", "gpt-4o-mini")
+RAG_MODEL = os.environ.get("RAG_MODEL", "gpt-5.4-mini")
 TOP_K = int(os.environ.get("RAG_TOP_K", "10"))
 LLM_CONTEXT_CHUNKS = int(os.environ.get("RAG_CONTEXT_CHUNKS", "8"))
 
@@ -39,6 +39,39 @@ def get_openai_client() -> OpenAI:
     if _openai_client is None:
         _openai_client = OpenAI()
     return _openai_client
+
+
+# Reasoning models (GPT-5 family, o-series) reject `temperature` and `max_tokens`;
+# they need `max_completion_tokens` and spend hidden reasoning tokens, so short
+# output limits must be padded. This wrapper makes one call shape work everywhere.
+_REASONING_PREFIXES = ("gpt-5", "o1", "o3", "o4")
+
+
+def _is_reasoning_model(model: str) -> bool:
+    return any(model.startswith(p) for p in _REASONING_PREFIXES)
+
+
+def chat_complete(messages, *, model: str | None = None, temperature: float | None = None,
+                  max_tokens: int | None = None, response_format: dict | None = None):
+    """Model-agnostic chat completion. Translates params for reasoning models."""
+    client = get_openai_client()
+    model = model or RAG_MODEL
+    kwargs: dict = {"model": model, "messages": messages}
+    if response_format is not None:
+        kwargs["response_format"] = response_format
+    if _is_reasoning_model(model):
+        # no custom temperature; reserve headroom so reasoning doesn't eat the answer
+        if max_tokens is not None:
+            kwargs["max_completion_tokens"] = max(max_tokens, 2048) + 1024
+        # 'none'/'low' minimize hidden reasoning for these fast extraction tasks
+        # (gpt-5.4 rejects 'minimal'; older gpt-5 used it). 'low' is the safe floor.
+        kwargs["reasoning_effort"] = "low"
+    else:
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+    return client.chat.completions.create(**kwargs)
 
 
 # ── Knowledge Base JSON ────────────────────────────────────────────────────
@@ -141,49 +174,69 @@ def _safe_json_list(raw_text: str) -> list[str]:
     return concepts[:10]
 
 
-def extract_concepts(text: str, model_name: str | None = None) -> list[str]:
-    """Extract 5-10 key concepts from a document."""
-    excerpt = text[:2000]
-    prompt = f"""
-Extract 5-10 key concepts from this text.
-Return JSON list only.
+VALID_CATEGORIES = {"is-a", "part-of", "uses", "contrasts", "causes", "related"}
+VALID_ENTITY_TYPES = {"concept", "person", "tech", "org", "event", "other"}
+
+
+def parse_knowledge_response(raw_text: str) -> dict:
+    """Validate an LLM knowledge-extraction response into {entities, triples}."""
+    data = _safe_json_value(raw_text) or {}
+    entities, triples = [], []
+    for e in data.get("entities", []) if isinstance(data, dict) else []:
+        if isinstance(e, dict) and isinstance(e.get("name"), str) and e["name"].strip():
+            etype = e.get("type") if e.get("type") in VALID_ENTITY_TYPES else "concept"
+            entities.append({"name": e["name"].strip(), "type": etype})
+    for t in data.get("triples", []) if isinstance(data, dict) else []:
+        if not isinstance(t, dict):
+            continue
+        s, p, o = (t.get(k, "") for k in ("subject", "predicate", "object"))
+        if all(isinstance(x, str) and x.strip() for x in (s, p, o)):
+            cat = t.get("category") if t.get("category") in VALID_CATEGORIES else "related"
+            triples.append({"subject": s.strip(), "predicate": p.strip(),
+                            "object": o.strip(), "category": cat})
+    return {"entities": entities[:15], "triples": triples[:20]}
+
+
+def extract_knowledge(text: str, title: str = "", model_name: str | None = None) -> dict:
+    """Extract typed entities and SPO triples from a document (one LLM call)."""
+    excerpt = text[:3000]
+    prompt = f"""Extract a small knowledge graph from this document.
+
+Return ONLY JSON: {{"entities": [{{"name": "...", "type": "concept|person|tech|org|event|other"}}],
+"triples": [{{"subject": "...", "predicate": "short verb phrase", "object": "...",
+"category": "is-a|part-of|uses|contrasts|causes|related"}}]}}
+
+Rules: 5-12 entities, 5-15 triples. Subjects/objects must be entity names.
+Keep names short and canonical. Use the same language as the document.
+
+Document title: {title}
 Text:
-{excerpt}
-"""
-    client = get_openai_client()
-    resp = client.chat.completions.create(
+{excerpt}"""
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
         model=model_name or RAG_MODEL,
-        messages=[{"role": "user", "content": prompt}],
         temperature=0.1,
-        max_tokens=300,
+        max_tokens=900,
+        response_format={"type": "json_object"},
     )
-    content = resp.choices[0].message.content or "[]"
-    concepts = _safe_json_list(content)
+    return parse_knowledge_response(resp.choices[0].message.content or "{}")
 
-    if concepts:
-        return concepts
 
-    # Fallback: recover likely key noun phrases from short lines or comma-separated output.
-    fallback = []
-    seen = set()
-    for piece in re.split(r"[\n,;]", content):
-        cleaned = re.sub(r"^\s*(?:[-*]|\d+[.)])\s*", "", piece).strip().strip("\"'")
-        if len(cleaned) < 3:
-            continue
-        normalized = cleaned.lower()
-        if normalized in seen:
-            continue
-        seen.add(normalized)
-        fallback.append(cleaned)
-    return fallback[:10]
+def extract_concepts(text: str, model_name: str | None = None) -> list[str]:
+    """Extract key concepts from a document (entity names from extract_knowledge)."""
+    knowledge = extract_knowledge(text, model_name=model_name)
+    return [e["name"] for e in knowledge["entities"]][:10]
 
 
 def refresh_missing_concepts(kb: dict, get_chunks_fn, model_name: str | None = None) -> int:
-    """Backfill concepts for documents that predate concept extraction."""
+    """Backfill concepts/entities/triples for documents that predate extraction."""
     updated = 0
+    doc_ids_with_triples = {t.get("doc_id") for t in kb.get("triples", [])}
     with _kb_lock:
         for doc_id, doc in kb["documents"].items():
-            if doc.get("concepts"):
+            has_concepts = bool(doc.get("concepts"))
+            has_knowledge = doc_id in doc_ids_with_triples
+            if has_concepts and has_knowledge:
                 continue
 
             chunks = get_chunks_fn(doc_id)
@@ -193,11 +246,16 @@ def refresh_missing_concepts(kb: dict, get_chunks_fn, model_name: str | None = N
             if not text:
                 continue
 
-            concepts = extract_concepts(text, model_name=model_name)
-            if not concepts:
+            try:
+                knowledge = extract_knowledge(text, title=doc.get("title", ""), model_name=model_name)
+            except Exception:
+                continue
+            if not knowledge["entities"] and not knowledge["triples"]:
                 continue
 
-            doc["concepts"] = concepts
+            if not has_concepts:
+                doc["concepts"] = [e["name"] for e in knowledge["entities"]][:10]
+            merge_knowledge_into_kb(kb, doc_id, knowledge, doc.get("added_at"))
             updated += 1
 
         if updated:
@@ -240,15 +298,18 @@ def rebuild_concept_links(kb: dict):
     kb["links"] = links
 
 
-def add_document_to_kb(kb: dict, doc_info: dict, summary: str = "", concepts: list[str] | None = None):
-    """Add a document entry to the knowledge base."""
+def add_document_to_kb(kb: dict, doc_info: dict, summary: str = "", concepts: list[str] | None = None,
+                       knowledge: dict | None = None):
+    """Add a document entry (and its extracted entities/triples) to the knowledge base."""
     with _kb_lock:
-        kb["documents"][doc_info["doc_id"]] = {
-            "id": doc_info["doc_id"],
+        now = datetime.now(timezone.utc).isoformat()
+        doc_id = doc_info["doc_id"]
+        kb["documents"][doc_id] = {
+            "id": doc_id,
             "title": doc_info["title"],
             "source_type": doc_info.get("source_type", "unknown"),
             "source": doc_info.get("source"),
-            "added_at": datetime.now(timezone.utc).isoformat(),
+            "added_at": now,
             "chunk_count": doc_info.get("chunk_count", 0),
             "text_length": doc_info.get("text_length", 0),
             "summary": summary,
@@ -256,13 +317,37 @@ def add_document_to_kb(kb: dict, doc_info: dict, summary: str = "", concepts: li
             "connections": [],
             "questions": [],
         }
+        if knowledge:
+            merge_knowledge_into_kb(kb, doc_id, knowledge, now)
         rebuild_concept_links(kb)
         _update_stats(kb)
         save_kb(kb)
 
 
+def merge_knowledge_into_kb(kb: dict, doc_id: str, knowledge: dict, created_at: str | None = None):
+    """Merge extracted entities/triples for a document into the KB (idempotent per doc)."""
+    created_at = created_at or datetime.now(timezone.utc).isoformat()
+    entities = kb.setdefault("entities", {})
+    for ent in knowledge.get("entities", []):
+        name = ent.get("name", "").strip()
+        if not name:
+            continue
+        entry = entities.setdefault(name, {"type": ent.get("type", "concept"),
+                                           "doc_ids": [], "created_at": created_at})
+        if doc_id not in entry["doc_ids"]:
+            entry["doc_ids"].append(doc_id)
+
+    triples = kb.setdefault("triples", [])
+    existing = {(t["subject"], t["predicate"], t["object"], t["doc_id"]) for t in triples}
+    for t in knowledge.get("triples", []):
+        key = (t["subject"], t["predicate"], t["object"], doc_id)
+        if key in existing:
+            continue
+        triples.append({**t, "doc_id": doc_id, "created_at": created_at})
+
+
 def remove_document_from_kb(kb: dict, doc_id: str):
-    """Remove a document and its connections from the KB."""
+    """Remove a document, its connections, and its entities/triples from the KB."""
     with _kb_lock:
         kb["documents"].pop(doc_id, None)
         # Remove connections referencing this doc
@@ -270,6 +355,13 @@ def remove_document_from_kb(kb: dict, doc_id: str):
             doc["connections"] = [
                 c for c in doc.get("connections", []) if c.get("doc_id") != doc_id
             ]
+        # Drop entity memberships and triples sourced from this doc
+        entities = kb.get("entities", {})
+        for name in list(entities):
+            entities[name]["doc_ids"] = [d for d in entities[name].get("doc_ids", []) if d != doc_id]
+            if not entities[name]["doc_ids"]:
+                entities.pop(name)
+        kb["triples"] = [t for t in kb.get("triples", []) if t.get("doc_id") != doc_id]
         rebuild_concept_links(kb)
         _update_stats(kb)
         save_kb(kb)
@@ -390,13 +482,117 @@ def build_graph_connections(kb: dict | None, top_docs: list[str]) -> list[dict]:
     return graph_links
 
 
-def answer_question(query: str, conversation_history: list = None, model=None, kb: dict | None = None) -> dict:
+_GLOBAL_QUESTION_RE = re.compile(
+    r"전체|전반|모든\s*(문서|내용|자료)|주제들|overall|themes?\b|all\s+(my\s+)?documents|across\s+(all\s+)?documents",
+    re.IGNORECASE,
+)
+
+
+def is_global_question(query: str) -> bool:
+    """Heuristic: does the question ask about the whole knowledge base?"""
+    return len(query) <= 200 and bool(_GLOBAL_QUESTION_RE.search(query))
+
+
+def answer_global_question(query: str, kb: dict, embed_fn=None) -> dict:
+    """LazyGraphRAG-style global answer: summarize on demand from the concept
+    communities instead of retrieving individual chunks."""
+    from scripts.graph import build_graph_payload
+
+    payload = build_graph_payload(kb, embed_fn=embed_fn)
+
+    members: dict[int, list[dict]] = {}
+    for node in payload["nodes"]:
+        members.setdefault(node.get("community", -1), []).append(node)
+
+    sections = []
+    rep_docs: list[tuple[str, str]] = []  # (doc_id, title) one per community
+    for comm in payload["communities"][:8]:
+        nodes = members.get(comm["id"], [])
+        if len(nodes) < 2:
+            continue
+        concepts = [n["label"] for n in sorted(nodes, key=lambda n: -n.get("centrality", 0))[:8]]
+        doc_titles, doc_ids = [], []
+        for n in nodes:
+            for doc_id, title in zip(n.get("doc_ids", []), n.get("docs", [])):
+                if title not in doc_titles:
+                    doc_titles.append(title)
+                    doc_ids.append(doc_id)
+        sections.append(f"## {comm['label']}\nConcepts: {', '.join(concepts)}\n"
+                        f"Documents: {', '.join(doc_titles[:5])}")
+        if doc_ids:
+            rep_docs.append((doc_ids[0], doc_titles[0]))
+
+    summaries = []
+    for doc_id, doc in list(kb.get("documents", {}).items())[:10]:
+        if doc.get("summary"):
+            summaries.append(f"[{doc.get('title', doc_id)}] {doc['summary'][:600]}")
+
+    context = ("# Knowledge map (concept clusters)\n" + "\n\n".join(sections) +
+               "\n\n# Document summaries\n" + "\n\n".join(summaries))[:9000]
+
+    prompt = f"""You are a learning assistant. The user asks a question about their whole
+knowledge base. Below is a map of their knowledge: concept clusters discovered
+across documents, plus per-document summaries. Answer using this map —
+describe the main themes, how clusters relate, and where coverage is thin.
+Answer in the same language as the user's question.
+
+{context}
+
+Question:
+{query}"""
+
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
+        temperature=0.2,
+        max_tokens=1500,
+    )
+
+    seen = set()
+    sources = []
+    for doc_id, title in rep_docs:
+        if doc_id not in seen:
+            seen.add(doc_id)
+            sources.append({"title": title, "doc_id": doc_id, "score": 1.0})
+
+    return {
+        "answer": resp.choices[0].message.content,
+        "sources": sources,
+        "confidence": "high" if sections else "low",
+        "related_docs": [],
+        "connections": [],
+    }
+
+
+def answer_question(query: str, conversation_history: list = None, model=None, kb: dict | None = None,
+                    embed_fn=None) -> dict:
     """
     RAG Q&A: retrieve relevant chunks, generate answer with OpenAI.
+    When kb and embed_fn are given, retrieval scores are fused with
+    Personalized PageRank over the knowledge graph (multi-hop boost).
 
     Returns: {answer, sources, confidence, related_docs, connections}
     """
+    # whole-knowledge-base questions answer from the concept map, not chunks
+    if kb is not None and len(kb.get("documents", {})) >= 3 and is_global_question(query):
+        try:
+            return answer_global_question(query, kb, embed_fn=embed_fn)
+        except Exception:
+            pass  # fall back to chunk retrieval
+
     retrieval = retrieve(query, top_k=TOP_K, model=model)
+
+    # graph fusion: rescore chunks by PPR document relevance (never fatal)
+    if kb is not None and embed_fn is not None and retrieval["results"]:
+        try:
+            from scripts.graph import ppr_doc_scores
+            graph_scores = ppr_doc_scores(kb, embed_fn, query)
+            if graph_scores:
+                for r in retrieval["results"]:
+                    r["score"] = round(0.75 * r["score"] + 0.25 * graph_scores.get(r["doc_id"], 0.0), 4)
+                retrieval["results"].sort(key=lambda r: r["score"], reverse=True)
+        except Exception:
+            pass
+
     related_docs = build_related_docs(retrieval)
     top_docs = extract_top_docs(retrieval)
     graph_connections = build_graph_connections(kb, top_docs)
@@ -428,13 +624,7 @@ Question:
 
     messages.append({"role": "user", "content": user_msg})
 
-    client = get_openai_client()
-    resp = client.chat.completions.create(
-        model=RAG_MODEL,
-        messages=messages,
-        temperature=0.1,
-        max_tokens=2000,
-    )
+    resp = chat_complete(messages, temperature=0.1, max_tokens=2000)
 
     answer = resp.choices[0].message.content
 
@@ -461,10 +651,8 @@ def summarize_document(text: str, title: str) -> str:
     if len(words) > 8000:
         text = " ".join(words[:8000]) + "\n\n[...truncated for summarization]"
 
-    client = get_openai_client()
-    resp = client.chat.completions.create(
-        model=RAG_MODEL,
-        messages=[
+    resp = chat_complete(
+        [
             {
                 "role": "system",
                 "content": "You are a precise summarizer. Create a clear, structured summary of the document. Identify key concepts, main arguments, and conclusions. Use 3-5 paragraphs.",
@@ -540,12 +728,10 @@ def find_connections(doc_id: str, kb: dict, model=None, describe_with_llm: bool 
     connections.sort(key=lambda x: x["similarity"], reverse=True)
 
     if describe_with_llm:
-        client = get_openai_client()
         for conn in connections[:5]:  # Only describe top 5 to save API calls
             try:
-                resp = client.chat.completions.create(
-                    model=RAG_MODEL,
-                    messages=[
+                resp = chat_complete(
+                    [
                         {
                             "role": "system",
                             "content": "In one concise sentence, describe how these two documents are related based on their summaries.",
@@ -687,10 +873,9 @@ Excerpt:
 {excerpt}
 """
 
-    client = get_openai_client()
-    resp = client.chat.completions.create(
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
         model=model_name or RAG_MODEL,
-        messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
         max_tokens=1800,
     )

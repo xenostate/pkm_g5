@@ -30,10 +30,11 @@ from scripts.indexer import get_model, get_chroma_collection, ingest_pdf, ingest
 from scripts.retriever import retrieve
 from scripts.rag import (
     load_kb, save_kb, add_document_to_kb, remove_document_from_kb, add_qa_to_kb,
-    answer_question, summarize_document, extract_concepts, generate_document_questions,
+    answer_question, summarize_document, extract_knowledge, generate_document_questions,
     get_questions_by_document, pick_next_question, record_question_result,
-    refresh_missing_concepts, refresh_all_connections,
+    refresh_missing_concepts, refresh_all_connections, get_openai_client, chat_complete,
 )
+from scripts.graph import canonicalize_concepts, build_graph_payload, label_communities, label_semantic_edges, suggest_learning_questions
 from scripts.domain_context import (
     ensure_domain, get_current_domain, list_domains, migrate_legacy_data_to_general,
     set_current_domain, reset_current_domain,
@@ -61,7 +62,7 @@ SESSION_HISTORY_LIMIT = 5
 
 # 환경 변수 로드 및 모델 지정
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-RAG_MODEL = os.getenv("RAG_MODEL", "gpt-4.1-mini")
+RAG_MODEL = os.getenv("RAG_MODEL", "gpt-5.4-mini")
 
 
 def _sync_knowledge_map():
@@ -70,6 +71,11 @@ def _sync_knowledge_map():
     kb = _get_domain_kb(domain)
     refresh_missing_concepts(kb, get_document_chunks)
     kb_cache[domain] = refresh_all_connections(kb, embed_model, describe_with_llm=False)
+
+
+def _embed_labels(labels: list[str]):
+    """Shared list[str] -> ndarray embedding wrapper around the loaded e5 model."""
+    return embed_model.encode(labels, normalize_embeddings=True, show_progress_bar=False)
 
 
 def _get_domain_kb(domain: str | None = None) -> dict:
@@ -249,10 +255,11 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     # 핵심 개념 추출
     try:
-        concepts = await asyncio.to_thread(extract_concepts, result["full_text"])
+        knowledge = await asyncio.to_thread(extract_knowledge, result["full_text"], result["title"])
+        concepts = [e["name"] for e in knowledge["entities"]][:10]
     except Exception as e:
-        log.warning(f"Concept extraction failed: {e}")
-        concepts = []
+        log.warning(f"Knowledge extraction failed: {e}")
+        knowledge, concepts = None, []
 
     add_document_to_kb(kb, {
         "doc_id": result["doc_id"],
@@ -261,7 +268,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         "source": file.filename,
         "chunk_count": result["chunk_count"],
         "text_length": result["text_length"],
-    }, summary=summary, concepts=concepts)
+    }, summary=summary, concepts=concepts, knowledge=knowledge)
     await asyncio.to_thread(_sync_knowledge_map)
 
     log.info(f"Ingested PDF: {file.filename} -> {result['chunk_count']} chunks")
@@ -290,10 +297,11 @@ async def add_url(req: UrlRequest):
         summary = ""
 
     try:
-        concepts = await asyncio.to_thread(extract_concepts, result["full_text"])
+        knowledge = await asyncio.to_thread(extract_knowledge, result["full_text"], result["title"])
+        concepts = [e["name"] for e in knowledge["entities"]][:10]
     except Exception as e:
-        log.warning(f"Concept extraction failed: {e}")
-        concepts = []
+        log.warning(f"Knowledge extraction failed: {e}")
+        knowledge, concepts = None, []
 
     add_document_to_kb(kb, {
         "doc_id": result["doc_id"],
@@ -302,7 +310,7 @@ async def add_url(req: UrlRequest):
         "source": req.url,
         "chunk_count": result["chunk_count"],
         "text_length": result["text_length"],
-    }, summary=summary, concepts=concepts)
+    }, summary=summary, concepts=concepts, knowledge=knowledge)
     await asyncio.to_thread(_sync_knowledge_map)
 
     log.info(f"Ingested URL: {req.url} -> {result['chunk_count']} chunks")
@@ -331,10 +339,11 @@ async def add_text(req: TextRequest):
         summary = ""
 
     try:
-        concepts = await asyncio.to_thread(extract_concepts, result["full_text"])
+        knowledge = await asyncio.to_thread(extract_knowledge, result["full_text"], result["title"])
+        concepts = [e["name"] for e in knowledge["entities"]][:10]
     except Exception as e:
-        log.warning(f"Concept extraction failed: {e}")
-        concepts = []
+        log.warning(f"Knowledge extraction failed: {e}")
+        knowledge, concepts = None, []
 
     add_document_to_kb(kb, {
         "doc_id": result["doc_id"],
@@ -343,7 +352,7 @@ async def add_text(req: TextRequest):
         "source": None,
         "chunk_count": result["chunk_count"],
         "text_length": result["text_length"],
-    }, summary=summary, concepts=concepts)
+    }, summary=summary, concepts=concepts, knowledge=knowledge)
     await asyncio.to_thread(_sync_knowledge_map)
 
     log.info(f"Ingested text: '{req.title}' -> {result['chunk_count']} chunks")
@@ -410,7 +419,7 @@ async def chat(req: ChatRequest):
         history = _session_history.get(req.session_id, [])
 
     result = await asyncio.to_thread(
-        answer_question, req.message, history, embed_model, kb
+        answer_question, req.message, history, embed_model, kb, _embed_labels
     )
 
     with _session_lock:
@@ -518,10 +527,8 @@ Return JSON only in this format:
 }}
 """
 
-    client = OpenAI()
-    resp = client.chat.completions.create(
-        model=RAG_MODEL,
-        messages=[{"role": "user", "content": prompt}],
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
         temperature=0.2,
         max_tokens=400,
     )
@@ -613,13 +620,68 @@ async def get_connections():
     return {"connections": all_connections}
 
 
+def _label_communities_llm(prompt: str) -> str:
+    """One short completion for a community label."""
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
+        temperature=0.2,
+        max_tokens=20,
+    )
+    return resp.choices[0].message.content or ""
+
+
+def _label_semantic_llm(prompt: str) -> str:
+    """One batched completion naming cross-document semantic relations."""
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
+        temperature=0.2,
+        max_tokens=600,
+        response_format={"type": "json_object"},
+    )
+    return resp.choices[0].message.content or "{}"
+
+
+def _learning_questions_llm(prompt: str) -> str:
+    """One batched completion generating study questions from the cluster map."""
+    resp = chat_complete(
+        [{"role": "user", "content": prompt}],
+        temperature=0.4,
+        max_tokens=600,
+        response_format={"type": "json_object"},
+    )
+    return resp.choices[0].message.content or "{}"
+
+
 @app.post("/api/connections/refresh")
 async def refresh_connections():
     kb = _get_domain_kb()
     concept_updates = await asyncio.to_thread(refresh_missing_concepts, kb, get_document_chunks)
     refreshed = await asyncio.to_thread(refresh_all_connections, kb, embed_model, True)
     kb_cache[get_current_domain()] = refreshed
+
+    def _label():
+        canonicalize_concepts(kb, embed_fn=_embed_labels)
+        payload = build_graph_payload(kb, embed_fn=_embed_labels)
+        changed = label_communities(kb, payload, _label_communities_llm)
+        changed += label_semantic_edges(kb, _label_semantic_llm, embed_fn=_embed_labels)
+        # regenerate the community labels into the payload before suggesting questions
+        payload = build_graph_payload(kb, embed_fn=_embed_labels)
+        suggest_learning_questions(kb, payload, _learning_questions_llm)
+        save_kb(kb)
+
+    await asyncio.to_thread(_label)
     return {"status": "refreshed", "document_count": len(kb["documents"]), "concepts_backfilled": concept_updates}
+
+
+@app.get("/api/graph")
+async def get_graph():
+    kb = _get_domain_kb()
+
+    def _payload():
+        canonicalize_concepts(kb, embed_fn=_embed_labels)
+        return build_graph_payload(kb, embed_fn=_embed_labels)
+
+    return await asyncio.to_thread(_payload)
 
 
 @app.get("/api/knowledge-base")
