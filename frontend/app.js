@@ -495,7 +495,7 @@ function initChatWidget() {
 function updateChatWidgetVisibility(page) {
     const widget = document.getElementById("chat-widget");
     if (!widget) return;
-    widget.classList.toggle("hidden", page === "chat" || page === "connections");
+    widget.classList.toggle("hidden", page === "chat");
 }
 
 async function sendChat({ inputId, messagesId }) {
