@@ -18,7 +18,7 @@ A local-first Personal Knowledge Management system powered by RAG (Retrieval-Aug
           └─────────────┘ └─────────┘ └───────────────┘
 ```
 
-**Pipeline:** Upload → Extract text → Chunk (500 words, overlapping) → Embed (`intfloat/multilingual-e5-base`, CPU) → Store in ChromaDB → Auto-summarize via OpenAI → Vector retrieval → LLM answer with sources
+**Pipeline:** Upload → Extract text → Chunk (500 words, overlapping) → Embed (`intfloat/multilingual-e5-base`, CPU) → Store in ChromaDB → Auto-summarize + knowledge extraction (entities/relations) via OpenAI → Vector retrieval fused with Personalized PageRank over the knowledge graph → LLM answer with sources (whole-KB questions answered from concept communities)
 
 ## Features
 
@@ -26,7 +26,7 @@ A local-first Personal Knowledge Management system powered by RAG (Retrieval-Aug
 - **URL ingestion** — fetch and index any web page
 - **Text notes** — paste or type text directly
 - **Automatic summarization** — every document is summarized on upload
-- **Knowledge connections** — discover relationships between documents
+- **Concept knowledge graph** — concepts (not documents) are the nodes: LLM-extracted entities and SPO relations, cross-document semantic links named by the LLM, Q&A trails, Louvain community coloring, centrality sizing, structural-gap "bridge questions", per-document filtering, and a temporal slider
 - **Natural language Q&A** — ask questions, get answers with source attribution
 - **Full-text search** — search across all your documents
 - **Local vector store** — ChromaDB runs on CPU, no cloud needed
@@ -41,8 +41,10 @@ A local-first Personal Knowledge Management system powered by RAG (Retrieval-Aug
 
 ### 1. Set up Python environment
 
+Requires Python **3.11+** — if your system `python3` is older (e.g. macOS ships 3.9), use an explicit version:
+
 ```bash
-python3 -m venv .venv
+python3.11 -m venv .venv   # or: python3 -m venv .venv (if python3 >= 3.11)
 .venv/bin/pip install -r scripts/requirements.txt
 ```
 
@@ -111,7 +113,8 @@ Open `http://localhost:8090` in your browser.
 | `GET` | `/api/chat/history` | Q&A history |
 | `POST` | `/api/search` | Natural language search |
 | `GET` | `/api/connections` | All document connections |
-| `POST` | `/api/connections/refresh` | Recompute connections |
+| `POST` | `/api/connections/refresh` | Recompute connections, backfill knowledge extraction, label communities/relations |
+| `GET` | `/api/graph` | Concept graph payload (nodes, edges, communities, gaps, documents) |
 | `GET` | `/api/knowledge-base` | Full knowledge base JSON |
 | `GET` | `/api/stats` | Statistics |
 
@@ -121,7 +124,8 @@ Open `http://localhost:8090` in your browser.
 |---------|---------|-------------|
 | `EMBED_MODEL` | `intfloat/multilingual-e5-base` | Embedding model (runs on CPU) |
 | `RAG_MODEL` | `gpt-4o-mini` | OpenAI model for LLM features |
-| `RAG_TOP_K` | `5` | Chunks retrieved per query |
+| `RAG_TOP_K` | `10` | Chunks retrieved per query |
+| `RAG_CONTEXT_CHUNKS` | `8` | Chunks passed to the LLM as context |
 | `CHUNK_SIZE` | `500` | Words per chunk |
 | `CHUNK_OVERLAP` | `50` | Overlap words between chunks |
 

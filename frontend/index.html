@@ -101,29 +101,52 @@
                     <h2>Knowledge Map</h2>
                     <button id="refresh-connections-btn" class="btn btn-secondary">Refresh Connections</button>
                 </div>
-                <div class="connections-layout">
+                <div class="connections-layout panel-collapsed">
                     <div class="connections-container">
-                        <canvas id="connections-canvas"></canvas>
-                        <div id="connections-tooltip" class="connections-tooltip hidden"></div>
-                        <div class="connections-zoom-controls">
-                            <button id="connections-zoom-out" class="btn btn-secondary" type="button">-</button>
-                            <span id="connections-zoom-level">100%</span>
-                            <button id="connections-zoom-in" class="btn btn-secondary" type="button">+</button>
-                            <button id="connections-zoom-reset" class="btn btn-secondary" type="button">Reset</button>
+                        <div class="graph-toolbar">
+                            <input type="search" id="graph-search" placeholder="Find node...">
+                            <label class="graph-slider-label">links/concept ≤ <span id="graph-topk-value">4</span>
+                                <input type="range" id="graph-topk" min="1" max="10" step="1" value="4">
+                            </label>
+                            <label class="graph-slider-label">as of <span id="graph-date-value">now</span>
+                                <input type="range" id="graph-date" min="0" max="100" value="100">
+                            </label>
+                            <div class="graph-layer-toggles">
+                                <button id="graph-show-relations" class="map-toggle active" type="button" data-tip="LLM이 추출한 명시적 관계 (is-a · part-of · uses · causes 등). 화살표로 방향 표시.">relations</button>
+                                <button id="graph-show-semantic" class="map-toggle active" type="button" data-tip="서로 다른 문서의 개념 중 의미가 가까운 쌍을 LLM이 설명과 함께 연결.">semantic</button>
+                                <button id="graph-show-cooccur" class="map-toggle" type="button" data-tip="같은 문서 안에 함께 등장한 개념들의 연결 (당연한 관계라 기본 꺼짐).">co-occurrence</button>
+                                <button id="graph-show-trails" class="map-toggle active" type="button" data-tip="같은 Q&A 대화에서 함께 다뤄진 개념들의 연결 (학습 흐름).">trails</button>
+                                <button id="graph-show-badges" class="map-toggle" type="button" data-tip="개념 노드 아래에 출처 문서 번호 배지를 표시.">doc badges</button>
+                            </div>
+                            <button id="graph-fit" class="map-toggle" type="button" data-tip="그래프 전체를 화면에 맞춰 보기.">Fit</button>
                         </div>
-                        <div id="connections-legend" class="connections-legend">
-                            <button id="toggle-similarity" class="map-toggle active legend-toggle" type="button"><span class="legend-line similarity"></span> similarity</button>
-                            <button id="toggle-concepts" class="map-toggle active legend-toggle" type="button"><span class="legend-line concept"></span> shared concepts</button>
-                            <button id="toggle-topics" class="map-toggle active legend-toggle" type="button"><span class="legend-dot topic"></span> orbiting topic</button>
+                        <div id="cy-wrap">
+                            <div id="cy"></div>
+                            <button id="graph-maximize" class="graph-maximize-btn" type="button" title="전체 화면으로 크게 보기 (ESC로 복귀)" aria-label="Maximize">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+                            </button>
+                            <div id="graph-ego-banner" class="graph-ego-banner">Focus mode — click empty space to return</div>
+                            <div id="graph-inspector" class="graph-inspector"></div>
+                            <div id="graph-legend" class="graph-legend"></div>
+                            <div class="graph-hint">Hover to see connections · click a concept to explain it · double-click to open its document</div>
                         </div>
                         <div id="connections-empty" class="empty-state">Add at least 2 documents, then click "Refresh Connections" to discover relationships.</div>
                     </div>
+                    <button class="panel-handle" type="button" aria-label="Toggle panels">‹</button>
                     <aside class="topic-panel">
-                        <h3>Topic Correlations</h3>
-                        <p class="topic-panel-copy">Semantically similar topics found across your uploaded documents.</p>
-                        <div id="topic-correlation-list" class="topic-correlation-list">
-                            <p class="empty-state">Upload documents with overlapping ideas to see topic clusters.</p>
+                        <h3>Clusters</h3>
+                        <p class="topic-panel-copy">Press and hold a cluster to highlight it on the map.</p>
+                        <div id="community-list" class="topic-correlation-list"></div>
+                        <h3>Study Questions</h3>
+                        <p class="topic-panel-copy">Questions to deepen your understanding — click to ask in Chat.</p>
+                        <div id="learning-list" class="topic-correlation-list"></div>
+                        <h3>Documents</h3>
+                        <p class="topic-panel-copy">Choose which documents appear on the map.</p>
+                        <div class="graph-doc-filter-actions">
+                            <button id="graph-docs-all" class="btn btn-secondary" type="button">All</button>
+                            <button id="graph-docs-none" class="btn btn-secondary" type="button">None</button>
                         </div>
+                        <div id="graph-doc-filter" class="graph-doc-filter"></div>
                     </aside>
                 </div>
             </div>
@@ -225,6 +248,10 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/static/vendor/cytoscape.min.js"></script>
+    <script src="/static/vendor/layout-base.js"></script>
+    <script src="/static/vendor/cose-base.js"></script>
+    <script src="/static/vendor/cytoscape-fcose.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>

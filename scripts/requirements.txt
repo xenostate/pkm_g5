@@ -13,3 +13,5 @@ python-multipart>=0.0.9
 kokoro>=0.9.4
 soundfile>=0.12
 misaki[en]>=0.9.4
+networkx>=3.0
+pytest>=8.0
