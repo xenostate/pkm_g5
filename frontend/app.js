@@ -506,9 +506,12 @@ async function sendChat({ inputId, messagesId }) {
     input.value = "";
     appendChatMsg(messagesId, "user", message);
 
-    // Show typing indicator
-    const typingEl = appendChatMsg(messagesId, "assistant", "Thinking...");
-    typingEl.style.opacity = "0.5";
+    // Show typing indicator only in Chat tab
+    let typingEl = null;
+    if (messagesId === "chat-messages") {
+        typingEl = appendChatMsg(messagesId, "assistant", "Thinking...");
+        typingEl.style.opacity = "0.5";
+    }
 
     try {
         const res = await apiFetch("/api/chat", {
@@ -518,27 +521,39 @@ async function sendChat({ inputId, messagesId }) {
         });
         const data = await res.json();
 
-        typingEl.remove();
+        if (typingEl) typingEl.remove();
+
         appendChatAnswer(messagesId, data);
         loadStats();
     } catch (err) {
-        typingEl.remove();
+        if (typingEl) typingEl.remove();
+
         appendChatMsg(messagesId, "assistant", `Error: ${err.message}`);
     }
 }
 
 function appendChatMsg(messagesId, role, text) {
-    const container = document.getElementById(messagesId);
-    // Remove welcome message
-    const welcome = container.querySelector(".chat-welcome");
-    if (welcome) welcome.remove();
+    const targets = [
+        document.getElementById("chat-messages"),
+        document.getElementById("chat-widget-messages")
+    ];
 
-    const div = document.createElement("div");
-    div.className = `chat-msg ${role}`;
-    div.textContent = text;
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-    return div;
+    let firstDiv = null;
+
+    targets.forEach(container => {
+        if (!container) return;
+
+        const div = document.createElement("div");
+        div.className = `chat-msg ${role}`;
+        div.textContent = text;
+
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+
+        if (!firstDiv) firstDiv = div;
+    });
+
+    return firstDiv;
 }
 
 function appendChatAnswer(messagesId, data) {
@@ -576,9 +591,21 @@ function appendChatAnswer(messagesId, data) {
         html += "</div>";
     }
 
-    div.innerHTML = html;
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
+    const targets = [
+        document.getElementById("chat-messages"),
+        document.getElementById("chat-widget-messages")
+    ];
+
+    targets.forEach(container => {
+        if (!container) return;
+
+        const div = document.createElement("div");
+        div.className = "chat-msg assistant";
+        div.innerHTML = html;
+
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    });
 }
 
 // ── Summaries ──────────────────────────────────────────────────────────────
